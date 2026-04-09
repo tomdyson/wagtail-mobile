@@ -65,6 +65,11 @@
 - [x] Delete image with confirmation dialog
 - [x] Relative media URL resolution (for local dev servers)
 
+### QR code login
+- [x] Wagtail admin view ("Mobile app" menu item) showing QR code with API URL + token
+- [x] QR scanner on login screen via expo-camera (with camera permission flow)
+- [x] Scan QR → instant connection (bypasses username/password)
+
 ### Infrastructure
 - [x] Expo Router file-based routing with Stack + Tabs
 - [x] TypeScript (compiles clean)
@@ -77,7 +82,7 @@
 ## Next
 
 ### Medium priority
-- [ ] QR code login — scan a code from Wagtail admin to connect instantly (needs: management command or admin view in wagtail-write-api to generate QR containing `{url, token}`, expo-camera barcode scanner in mobile app, bypass username/password flow)
+- [x] QR code login — scan QR from Wagtail admin "Mobile app" page to connect instantly (wagtail-write-api 0.8.4 admin view + expo-camera scanner)
 - [ ] Page copy and move (API endpoints already exist)
 - [ ] Snippet FK chooser fields (schema has `widget: "snippet_chooser"` — needs snippet list API endpoint)
 - [ ] Snippets CRUD (API exists at `/snippets/`, needs mobile screens)

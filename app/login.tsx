@@ -9,6 +9,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { CameraView, useCameraPermissions, BarcodeScanningResult } from "expo-camera";
 
 import { ApiError, obtainToken } from "../lib/api";
 import { useAuth } from "../lib/hooks/useAuth";
@@ -20,6 +21,8 @@ export default function LoginScreen() {
   const [password, setPassword] = useState("");
   const [connecting, setConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [scanning, setScanning] = useState(false);
+  const [permission, requestPermission] = useCameraPermissions();
 
   const handleConnect = async () => {
     const trimmedUrl = url.trim().replace(/\/$/, "");
@@ -51,6 +54,60 @@ export default function LoginScreen() {
     }
   };
 
+  const handleScanQR = async () => {
+    if (!permission?.granted) {
+      const result = await requestPermission();
+      if (!result.granted) {
+        Alert.alert(
+          "Camera permission required",
+          "Allow camera access to scan QR codes from your Wagtail admin."
+        );
+        return;
+      }
+    }
+    setError(null);
+    setScanning(true);
+  };
+
+  const handleBarcodeScanned = async (result: BarcodeScanningResult) => {
+    setScanning(false);
+    try {
+      const data = JSON.parse(result.data);
+      if (!data.url || !data.token) {
+        setError("Invalid QR code. Open 'Mobile app' in your Wagtail admin to get the right code.");
+        return;
+      }
+      const baseUrl = data.url.replace(/\/$/, "");
+      await login(baseUrl, data.token);
+    } catch {
+      setError("Could not read QR code. Make sure you're scanning the code from Wagtail admin.");
+    }
+  };
+
+  if (scanning) {
+    return (
+      <View style={styles.scannerContainer}>
+        <CameraView
+          style={styles.camera}
+          facing="back"
+          barcodeScannerSettings={{ barcodeTypes: ["qr"] }}
+          onBarcodeScanned={handleBarcodeScanned}
+        />
+        <View style={styles.scannerOverlay}>
+          <Text style={styles.scannerText}>
+            Scan the QR code from your Wagtail admin
+          </Text>
+        </View>
+        <Pressable
+          style={styles.cancelButton}
+          onPress={() => setScanning(false)}
+        >
+          <Text style={styles.cancelButtonText}>Cancel</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -63,6 +120,22 @@ export default function LoginScreen() {
         </Text>
 
         <View style={styles.form}>
+          <Pressable
+            style={({ pressed }) => [
+              styles.qrButton,
+              pressed && styles.buttonPressed,
+            ]}
+            onPress={handleScanQR}
+          >
+            <Text style={styles.qrButtonText}>Scan QR Code</Text>
+          </Pressable>
+
+          <View style={styles.divider}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>or connect manually</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
           <View style={styles.inputGroup}>
             <Text style={styles.label}>API URL</Text>
             <TextInput
@@ -149,6 +222,33 @@ const styles = StyleSheet.create({
   form: {
     gap: 16,
   },
+  qrButton: {
+    backgroundColor: "#fff",
+    borderWidth: 2,
+    borderColor: "#111827",
+    borderRadius: 8,
+    paddingVertical: 14,
+    alignItems: "center",
+  },
+  qrButtonText: {
+    color: "#111827",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  divider: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: "#E5E7EB",
+  },
+  dividerText: {
+    fontSize: 13,
+    color: "#9CA3AF",
+  },
   inputGroup: {
     gap: 4,
   },
@@ -186,6 +286,45 @@ const styles = StyleSheet.create({
     opacity: 0.8,
   },
   buttonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  scannerContainer: {
+    flex: 1,
+    backgroundColor: "#000",
+  },
+  camera: {
+    flex: 1,
+  },
+  scannerOverlay: {
+    position: "absolute",
+    top: 100,
+    left: 0,
+    right: 0,
+    alignItems: "center",
+  },
+  scannerText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
+    textAlign: "center",
+    backgroundColor: "rgba(0,0,0,0.6)",
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+    overflow: "hidden",
+  },
+  cancelButton: {
+    position: "absolute",
+    bottom: 60,
+    alignSelf: "center",
+    backgroundColor: "rgba(0,0,0,0.6)",
+    paddingHorizontal: 32,
+    paddingVertical: 14,
+    borderRadius: 8,
+  },
+  cancelButtonText: {
     color: "#fff",
     fontSize: 16,
     fontWeight: "600",

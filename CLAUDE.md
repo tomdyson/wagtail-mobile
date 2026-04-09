@@ -55,7 +55,7 @@ npx tsc --noEmit         # TypeScript check
 
 ## Key behaviours
 
-- **Auth**: Login via `POST /auth/token/` with username/password. Token stored in expo-secure-store. "Disconnect" clears local storage only. Expired/revoked tokens (401 from any API call) automatically redirect to login via `authEvent.ts` listener.
+- **Auth**: Two login methods: (1) Scan QR code from Wagtail admin "Mobile app" page for instant connection, or (2) manual username/password login via `POST /auth/token/`. Token stored in expo-secure-store. "Disconnect" clears local storage only. Expired/revoked tokens (401 from any API call) automatically redirect to login via `authEvent.ts` listener.
 - **Auto-refresh**: Page list screens silently re-fetch data on focus (via `useFocusEffect`), so lists stay current after create/edit/delete without manual pull-to-refresh.
 - **Rich text**: Page detail requests `?rich_text_format=markdown`. Edits sent back as `{"format": "markdown", "content": "..."}` via `markdownPayload()`.
 - **Date fields**: Detected from the page type schema (`format: "date"` or `format: "date-time"`). Rendered as native iOS date pickers.
@@ -69,7 +69,7 @@ npx tsc --noEmit         # TypeScript check
 
 ## API dependency
 
-This app talks to wagtail-write-api >= 0.8.3. Key endpoints:
+This app talks to wagtail-write-api >= 0.8.4. Key endpoints:
 
 - `POST /auth/token/` — login
 - `GET /pages/?parent=N` — list children
@@ -88,6 +88,7 @@ Beyond the default Expo template:
 
 - `expo-router` — file-based routing
 - `expo-secure-store` — credential storage
+- `expo-camera` — QR code scanning for login
 - `expo-haptics` — tactile feedback on publish/unpublish
 - `expo-image-picker` — image upload from camera roll
 - `@expo/vector-icons` — tab and UI icons
