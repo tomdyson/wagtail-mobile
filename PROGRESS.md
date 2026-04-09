@@ -37,7 +37,7 @@
 - [x] Publish / unpublish actions with haptic feedback
 - [x] Permission-aware (buttons based on `meta.user_permissions`)
 - [x] Boolean fields as toggle switches (detected from value type)
-- [x] Unsaved changes warning (beforeRemove listener prevents accidental back-navigation)
+- [x] Unsaved changes warning (usePreventRemove with discard/keep editing dialog)
 - [x] Keyboard-avoiding scroll view
 - [x] Delete page with confirmation dialog (permission-aware)
 
