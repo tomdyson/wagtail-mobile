@@ -46,7 +46,7 @@
 - [x] Title, slug, and simple fields from schema
 - [x] Date fields with native picker
 - [x] "Publish immediately" toggle
-- [x] StreamField support with "add block" buttons for editable block types
+- [x] StreamField support with add/delete/reorder for all editable block types (including ListBlocks)
 - [x] Image FK fields with image chooser modal (e.g. feed_image)
 - [x] Rich text fields with markdown editing
 - [x] Inline panel fields with add/remove/edit (e.g. authors)
