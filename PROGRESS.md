@@ -18,6 +18,8 @@
 - [x] Empty state when no children
 - [x] Global page search (search bar on Pages tab)
 - [x] Auto-refresh lists after create/edit/delete (silent background re-fetch on focus)
+- [x] Infinite scroll pagination (20 per page)
+- [x] Breadcrumb trail on children screens (derived from URL path)
 
 ### Page detail/edit
 - [x] View all page fields with editable title and slug
@@ -41,12 +43,16 @@
 - [x] Schema-aware (skips StreamField/RichText/array fields)
 
 ### Image gallery
-- [x] Thumbnail grid (3 columns)
+- [x] Thumbnail grid (3 columns, padded to match page list)
 - [x] Search bar
 - [x] Pull-to-refresh
 - [x] Image detail with full-size preview
 - [x] Share button (native share sheet)
 - [x] Empty state
+- [x] Image upload from camera roll (expo-image-picker)
+- [x] Edit image title with save button
+- [x] Delete image with confirmation dialog
+- [x] Relative media URL resolution (for local dev servers)
 
 ### Infrastructure
 - [x] Expo Router file-based routing with Stack + Tabs
@@ -59,16 +65,11 @@
 
 ## Next
 
-### High priority
-- [ ] Image upload from camera roll
-
 ### Medium priority
 - [ ] StreamField body editing (at least paragraph blocks as markdown)
 - [ ] Page copy and move
 - [ ] Revision history viewer
 - [ ] Snippets CRUD
-- [ ] Infinite scroll pagination on page lists
-
 - [ ] Dark mode support (currently light only)
 
 ### Low priority / nice to have
@@ -76,8 +77,6 @@
 - [ ] App icon and splash screen (currently Expo defaults)
 - [ ] Push notifications for publish/workflow events
 - [ ] iPad layout (multi-column)
-- [ ] Breadcrumb trail showing current position in tree
 - [ ] QR code login (scan from Wagtail admin)
-- [ ] Image auth headers (if images are behind auth)
 - [ ] Automated tests (unit + integration)
 - [ ] EAS Build for TestFlight distribution
