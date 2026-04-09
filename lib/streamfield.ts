@@ -11,6 +11,8 @@ const EDITABLE_TYPES = new Set([
   "datetime",
   "url",
   "email",
+  "image_chooser",
+  "page_chooser",
 ]);
 
 export function isBlockEditable(schema: BlockSchema): boolean {

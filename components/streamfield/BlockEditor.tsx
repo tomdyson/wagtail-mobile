@@ -10,6 +10,8 @@ import {
 
 import { DateField } from "../DateField";
 import type { BlockSchema } from "../../lib/types";
+import { ImageChooser } from "./ImageChooser";
+import { PageChooser } from "./PageChooser";
 import { ReadOnlyBlock } from "./ReadOnlyBlock";
 
 interface Props {
@@ -234,6 +236,26 @@ export function BlockEditor({ value, schema, onChange, editable }: Props) {
       <StructBlockEditor
         value={value as Record<string, unknown>}
         schema={schema}
+        onChange={onChange}
+        editable={editable}
+      />
+    );
+  }
+
+  if (schema.type === "image_chooser") {
+    return (
+      <ImageChooser
+        value={value}
+        onChange={onChange}
+        editable={editable}
+      />
+    );
+  }
+
+  if (schema.type === "page_chooser") {
+    return (
+      <PageChooser
+        value={value}
         onChange={onChange}
         editable={editable}
       />
