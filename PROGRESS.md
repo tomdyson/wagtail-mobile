@@ -30,6 +30,8 @@
 - [x] StreamField image chooser with modal search grid and thumbnail preview
 - [x] StreamField page chooser with modal search list and title preview
 - [x] StreamField block add/delete/reorder (add from editable types, delete with confirmation, up/down reorder)
+- [x] Image FK fields with image chooser modal (e.g. feed_image), detected via schema widget hints
+- [x] Inline panel editing for orderable children (e.g. authors) with add/remove/edit rows
 - [x] Save button in header (appears when fields are dirty)
 - [x] Publish / unpublish actions with haptic feedback
 - [x] Permission-aware (buttons based on `meta.user_permissions`)
@@ -70,6 +72,7 @@
 ## Next
 
 ### Medium priority
+- [ ] Snippet FK chooser fields (schema has `widget: "snippet_chooser"` — needs snippet list API endpoint)
 - [ ] Page copy and move
 - [ ] Revision history viewer
 - [ ] Snippets CRUD

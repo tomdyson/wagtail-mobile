@@ -1,3 +1,4 @@
+import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
@@ -16,6 +17,7 @@ import {
 import { DateField } from "../../components/DateField";
 import { PageListSkeleton } from "../../components/Skeleton";
 import { StatusBadge } from "../../components/StatusBadge";
+import { ImageChooser } from "../../components/streamfield/ImageChooser";
 import { StreamFieldEditor } from "../../components/streamfield/StreamFieldEditor";
 import { ApiError, pages, schema, type SchemaDetail } from "../../lib/api";
 import { useAuth } from "../../lib/hooks/useAuth";
@@ -247,20 +249,77 @@ export default function PageDetailScreen() {
   const streamFieldNames = new Set(
     Object.keys(schemaDetail?.streamfield_blocks || {})
   );
+
+  // Extract widget hints and inline panel schemas from schema properties
+  const widgetMap = new Map<string, string>();
+  const inlinePanelSchemas = new Map<string, Record<string, { type: string; required: boolean }>>();
+  if (schemaDetail?.create_schema?.properties) {
+    const defs = (schemaDetail.create_schema as Record<string, unknown>)["$defs"] as
+      Record<string, Record<string, unknown>> | undefined;
+    for (const [name, def] of Object.entries(schemaDetail.create_schema.properties)) {
+      const d = def as Record<string, unknown>;
+      if (typeof d.widget === "string") {
+        widgetMap.set(name, d.widget);
+      }
+      // Detect inline panel fields: type "array" with items.$ref to $defs
+      if (d.type === "array" && d.items && defs) {
+        const items = d.items as Record<string, unknown>;
+        const ref = items["$ref"] as string | undefined;
+        if (ref?.startsWith("#/$defs/")) {
+          const defName = ref.replace("#/$defs/", "");
+          const defSchema = defs[defName];
+          if (defSchema?.properties) {
+            const props = defSchema.properties as Record<string, Record<string, unknown>>;
+            const reqSet = new Set((defSchema.required as string[]) || []);
+            const fieldDefs: Record<string, { type: string; required: boolean }> = {};
+            for (const [pName, pDef] of Object.entries(props)) {
+              if (pName === "id") continue; // skip internal id
+              let pType = (pDef.type as string) || "";
+              if (!pType && pDef.anyOf) {
+                const types = (pDef.anyOf as Array<Record<string, unknown>>)
+                  .filter((t) => t.type !== "null")
+                  .map((t) => t.type as string);
+                pType = types[0] || "string";
+              }
+              fieldDefs[pName] = { type: pType || "string", required: reqSet.has(pName) };
+            }
+            if (Object.keys(fieldDefs).length > 0) {
+              inlinePanelSchemas.set(name, fieldDefs);
+            }
+          }
+        }
+      }
+    }
+  }
+
   const extraFields = Object.entries(page).filter(
     ([key]) => !SKIP_FIELDS.has(key)
   );
   const richTextFields = extraFields.filter(
     ([key, value]) => richTextFieldNames.has(key) && typeof value === "string"
   );
+  const imageChooserFields = extraFields.filter(
+    ([key]) => widgetMap.get(key) === "image_chooser"
+  );
+  const imageChooserNames = new Set(imageChooserFields.map(([key]) => key));
   const simpleFields = extraFields.filter(
-    ([key, value]) => isSimpleField(value) && !richTextFieldNames.has(key)
+    ([key, value]) =>
+      isSimpleField(value) &&
+      !richTextFieldNames.has(key) &&
+      !imageChooserNames.has(key)
   );
   const streamFields = extraFields.filter(
     ([key, value]) => streamFieldNames.has(key) && Array.isArray(value)
   );
+  const inlinePanelFields = extraFields.filter(
+    ([key]) => inlinePanelSchemas.has(key)
+  );
+  const inlinePanelNames = new Set(inlinePanelFields.map(([key]) => key));
   const complexFields = extraFields.filter(
-    ([key, value]) => isComplexField(value) && !streamFieldNames.has(key)
+    ([key, value]) =>
+      isComplexField(value) &&
+      !streamFieldNames.has(key) &&
+      !inlinePanelNames.has(key)
   );
 
   const shortType = page.meta.type
@@ -379,6 +438,28 @@ export default function PageDetailScreen() {
             </View>
           )}
 
+          {imageChooserFields.length > 0 && (
+            <View style={styles.section}>
+              {imageChooserFields.map(([key]) => {
+                const currentVal = getFieldValue(key);
+                return (
+                  <View key={key} style={styles.fieldGroup}>
+                    <Text style={styles.fieldLabel}>
+                      {key.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase())}
+                    </Text>
+                    <ImageChooser
+                      value={currentVal as number | null}
+                      onChange={(id) =>
+                        setEditedFields((prev) => ({ ...prev, [key]: id }))
+                      }
+                      editable={canEdit}
+                    />
+                  </View>
+                );
+              })}
+            </View>
+          )}
+
           {richTextFields.length > 0 && (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Rich Text</Text>
@@ -427,6 +508,86 @@ export default function PageDetailScreen() {
               />
             </View>
           ))}
+
+          {inlinePanelFields.map(([key]) => {
+            const fieldSchema = inlinePanelSchemas.get(key)!;
+            const items = (getFieldValue(key) as Record<string, unknown>[]) || [];
+            const fieldProps = Object.keys(fieldSchema);
+            return (
+              <View key={key} style={styles.section}>
+                <Text style={styles.sectionTitle}>
+                  {key.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase())}
+                </Text>
+                {items.map((item, index) => (
+                  <View key={item.id != null ? String(item.id) : `new-${index}`} style={styles.inlineItem}>
+                    <View style={styles.inlineItemFields}>
+                      {fieldProps.map((prop) => (
+                        <View key={prop} style={styles.inlineField}>
+                          <Text style={styles.inlineFieldLabel}>
+                            {prop.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase())}
+                          </Text>
+                          <TextInput
+                            style={styles.fieldInput}
+                            value={String(item[prop] ?? "")}
+                            onChangeText={(text) => {
+                              const updated = items.map((it, i) =>
+                                i === index ? { ...it, [prop]: text } : it
+                              );
+                              setEditedFields((prev) => ({ ...prev, [key]: updated }));
+                            }}
+                            editable={canEdit}
+                            placeholder={fieldSchema[prop].required ? "Required" : "Optional"}
+                            placeholderTextColor="#D1D5DB"
+                          />
+                        </View>
+                      ))}
+                    </View>
+                    {canEdit && (
+                      <Pressable
+                        onPress={() => {
+                          Alert.alert("Remove", `Remove this ${key.replace(/_/g, " ").slice(0, -1)}?`, [
+                            { text: "Cancel", style: "cancel" },
+                            {
+                              text: "Remove",
+                              style: "destructive",
+                              onPress: () => {
+                                const updated = items.filter((_, i) => i !== index);
+                                setEditedFields((prev) => ({ ...prev, [key]: updated }));
+                              },
+                            },
+                          ]);
+                        }}
+                        hitSlop={8}
+                        style={styles.inlineDeleteButton}
+                      >
+                        <Ionicons name="trash-outline" size={16} color="#EF4444" />
+                      </Pressable>
+                    )}
+                  </View>
+                ))}
+                {canEdit && (
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.inlineAddButton,
+                      pressed && styles.inlineAddButtonPressed,
+                    ]}
+                    onPress={() => {
+                      const newItem: Record<string, unknown> = { id: null };
+                      for (const [prop, def] of Object.entries(fieldSchema)) {
+                        newItem[prop] = def.type === "integer" ? null : "";
+                      }
+                      const updated = [...items, newItem];
+                      setEditedFields((prev) => ({ ...prev, [key]: updated }));
+                    }}
+                  >
+                    <Text style={styles.inlineAddButtonText}>
+                      + Add {key.replace(/_/g, " ").slice(0, -1)}
+                    </Text>
+                  </Pressable>
+                )}
+              </View>
+            );
+          })}
 
           {complexFields.length > 0 && (
             <View style={styles.section}>
@@ -652,5 +813,48 @@ const styles = StyleSheet.create({
     color: "#3B82F6",
     fontSize: 16,
     fontWeight: "600",
+  },
+  inlineItem: {
+    flexDirection: "row",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderRadius: 8,
+    padding: 10,
+    backgroundColor: "#FAFAFA",
+    gap: 8,
+  },
+  inlineItemFields: {
+    flex: 1,
+    gap: 6,
+  },
+  inlineField: {
+    gap: 2,
+  },
+  inlineFieldLabel: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#6B7280",
+    textTransform: "uppercase",
+    letterSpacing: 0.3,
+  },
+  inlineDeleteButton: {
+    justifyContent: "center",
+    padding: 4,
+  },
+  inlineAddButton: {
+    paddingVertical: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#3B82F6",
+    borderStyle: "dashed",
+    alignItems: "center",
+  },
+  inlineAddButtonPressed: {
+    backgroundColor: "#EFF6FF",
+  },
+  inlineAddButtonText: {
+    fontSize: 14,
+    color: "#3B82F6",
+    fontWeight: "500",
   },
 });
