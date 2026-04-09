@@ -118,13 +118,20 @@ export default function PageDetailScreen() {
       slug !== page.slug ||
       Object.keys(editedFields).length > 0);
 
-  usePreventRemove(isDirty, ({ data }) => {
+  usePreventRemove(isDirty, () => {
     Alert.alert("Unsaved changes", "Discard your changes?", [
       { text: "Keep editing", style: "cancel" },
       {
         text: "Discard",
         style: "destructive",
-        onPress: () => data.action.target && router.back(),
+        onPress: () => {
+          if (page) {
+            setTitle(page.title);
+            setSlug(page.slug);
+            setEditedFields({});
+          }
+          setTimeout(() => router.back(), 0);
+        },
       },
     ]);
   });
