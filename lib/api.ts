@@ -1,3 +1,4 @@
+import { emitAuthFailure } from "./authEvent";
 import type {
   ImageItem,
   PageDetail,
@@ -71,6 +72,9 @@ async function request<T>(
     } catch {
       body = await response.text();
     }
+    if (response.status === 401) {
+      emitAuthFailure();
+    }
     throw new ApiError(response.status, body);
   }
 
@@ -141,6 +145,9 @@ export const pages = {
 
   unpublish: (baseUrl: string, token: string, id: number) =>
     request<PageDetail>(baseUrl, token, "POST", `/pages/${id}/unpublish/`),
+
+  delete: (baseUrl: string, token: string, id: number) =>
+    request<void>(baseUrl, token, "DELETE", `/pages/${id}/`),
 };
 
 export interface ImageFilters {

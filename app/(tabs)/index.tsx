@@ -1,22 +1,35 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Stack, useRouter } from "expo-router";
+import { useState } from "react";
 import {
   Alert,
   FlatList,
   Pressable,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
 
 import { PageRow } from "../../components/PageRow";
+import { PageListSkeleton } from "../../components/Skeleton";
 import { useAuth } from "../../lib/hooks/useAuth";
-import { usePageChildren } from "../../lib/hooks/usePages";
+import { usePageChildren, usePageSearch } from "../../lib/hooks/usePages";
 
 export default function PagesTab() {
   const router = useRouter();
   const { disconnect } = useAuth();
-  const { pages, loading, error, refresh } = usePageChildren(1);
+  const [search, setSearch] = useState("");
+  const isSearching = search.trim().length > 0;
+
+  const children = usePageChildren(1);
+  const searchResults = usePageSearch(
+    isSearching ? { search: search.trim(), limit: 50 } : { limit: 0 }
+  );
+
+  const { pages, loading, error, refresh } = isSearching
+    ? { pages: searchResults.pages, loading: searchResults.loading, error: searchResults.error, refresh: searchResults.refresh }
+    : children;
 
   const handleDisconnect = () => {
     Alert.alert("Disconnect", "Remove this site connection?", [
@@ -51,6 +64,24 @@ export default function PagesTab() {
         }}
       />
 
+      <View style={styles.searchContainer}>
+        <Ionicons
+          name="search"
+          size={18}
+          color="#9CA3AF"
+          style={styles.searchIcon}
+        />
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search all pages..."
+          value={search}
+          onChangeText={setSearch}
+          autoCapitalize="none"
+          autoCorrect={false}
+          clearButtonMode="while-editing"
+        />
+      </View>
+
       {error && (
         <View style={styles.errorBanner}>
           <Text style={styles.errorText}>{error.message}</Text>
@@ -70,16 +101,20 @@ export default function PagesTab() {
             onDetail={() => router.push(`/pages/${item.id}`)}
           />
         )}
-        refreshing={loading}
+        refreshing={loading && pages.length > 0}
         onRefresh={refresh}
         contentContainerStyle={pages.length === 0 ? styles.empty : undefined}
         ListEmptyComponent={
-          !loading ? (
+          loading ? (
+            <PageListSkeleton />
+          ) : (
             <View style={styles.emptyContent}>
               <Ionicons name="document-text-outline" size={48} color="#D1D5DB" />
-              <Text style={styles.emptyText}>No pages found</Text>
+              <Text style={styles.emptyText}>
+                {isSearching ? "No matching pages" : "No pages found"}
+              </Text>
             </View>
-          ) : null
+          )
         }
       />
     </View>
@@ -90,6 +125,24 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#fff",
+  },
+  searchContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginHorizontal: 16,
+    marginVertical: 8,
+    backgroundColor: "#F3F4F6",
+    borderRadius: 8,
+    paddingHorizontal: 10,
+  },
+  searchIcon: {
+    marginRight: 6,
+  },
+  searchInput: {
+    flex: 1,
+    paddingVertical: 8,
+    fontSize: 16,
+    color: "#111827",
   },
   errorBanner: {
     backgroundColor: "#FEF2F2",

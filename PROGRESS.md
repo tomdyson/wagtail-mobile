@@ -16,6 +16,8 @@
 - [x] Tap title to edit, tap chevron to drill into children
 - [x] Pull-to-refresh
 - [x] Empty state when no children
+- [x] Global page search (search bar on Pages tab)
+- [x] Auto-refresh lists after create/edit/delete (silent background re-fetch on focus)
 
 ### Page detail/edit
 - [x] View all page fields with editable title and slug
@@ -27,6 +29,7 @@
 - [x] Publish / unpublish actions with haptic feedback
 - [x] Permission-aware (buttons based on `meta.user_permissions`)
 - [x] Keyboard-avoiding scroll view
+- [x] Delete page with confirmation dialog (permission-aware)
 
 ### Page creation
 - [x] "+" button in page tree and children screens
@@ -51,15 +54,13 @@
 - [x] Typed API client (plain fetch, no dependencies)
 - [x] Safe area / status bar handling
 - [x] iOS-native navigation (back buttons, headers)
+- [x] Expired/revoked token handling (401 → auto-redirect to login)
+- [x] Skeleton loading screens (page lists, image grid, page detail)
 
 ## Next
 
 ### High priority
 - [ ] Image upload from camera roll
-- [ ] Page deletion (with confirmation)
-- [ ] Refresh page list after creating/editing a page (currently stale until pull-to-refresh)
-- [ ] Search pages globally (not just within a parent)
-- [ ] Error handling for expired/revoked tokens (redirect to login)
 
 ### Medium priority
 - [ ] StreamField body editing (at least paragraph blocks as markdown)
@@ -67,7 +68,7 @@
 - [ ] Revision history viewer
 - [ ] Snippets CRUD
 - [ ] Infinite scroll pagination on page lists
-- [ ] Loading skeletons instead of spinners
+
 - [ ] Dark mode support (currently light only)
 
 ### Low priority / nice to have

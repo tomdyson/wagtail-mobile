@@ -11,6 +11,7 @@ import {
 } from "react-native";
 
 import { ImageCard } from "../../components/ImageCard";
+import { ImageGridSkeleton } from "../../components/Skeleton";
 import { useImageList } from "../../lib/hooks/useImages";
 
 const NUM_COLUMNS = 3;
@@ -61,16 +62,18 @@ export default function ImagesTab() {
             onPress={() => router.push(`/images/${item.id}`)}
           />
         )}
-        refreshing={loading}
+        refreshing={loading && images.length > 0}
         onRefresh={refresh}
         contentContainerStyle={images.length === 0 ? styles.empty : undefined}
         ListEmptyComponent={
-          !loading ? (
+          loading ? (
+            <ImageGridSkeleton />
+          ) : (
             <View style={styles.emptyContent}>
               <Ionicons name="images-outline" size={48} color="#D1D5DB" />
               <Text style={styles.emptyText}>No images found</Text>
             </View>
-          ) : null
+          )
         }
       />
     </View>

@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
+import { useFocusEffect } from "expo-router";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { pages, type PageFilters } from "../api";
 import type { PageDetail, PageListItem } from "../types";
@@ -9,6 +10,7 @@ export function usePageChildren(parentId: number) {
   const [data, setData] = useState<PageListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  const hasFetched = useRef(false);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -26,9 +28,32 @@ export function usePageChildren(parentId: number) {
     }
   }, [baseUrl, token, parentId]);
 
+  // Silent refresh: updates data without toggling loading state
+  const silentRefresh = useCallback(async () => {
+    try {
+      const result = await pages.list(baseUrl, token, {
+        parent: parentId,
+        limit: 50,
+      });
+      setData(result.items);
+    } catch {
+      // silent — don't overwrite existing error state
+    }
+  }, [baseUrl, token, parentId]);
+
   useEffect(() => {
     refresh();
+    hasFetched.current = true;
   }, [refresh]);
+
+  // Re-fetch silently when screen regains focus (e.g. after create/edit/delete)
+  useFocusEffect(
+    useCallback(() => {
+      if (hasFetched.current) {
+        silentRefresh();
+      }
+    }, [silentRefresh])
+  );
 
   return { pages: data, loading, error, refresh };
 }

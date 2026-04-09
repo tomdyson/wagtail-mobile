@@ -3,6 +3,7 @@ import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { PageRow } from "../../../components/PageRow";
+import { PageListSkeleton } from "../../../components/Skeleton";
 import { usePageChildren, usePageDetail } from "../../../lib/hooks/usePages";
 
 export default function PageChildrenScreen() {
@@ -50,16 +51,18 @@ export default function PageChildrenScreen() {
             onDetail={() => router.push(`/pages/${item.id}`)}
           />
         )}
-        refreshing={loading}
+        refreshing={loading && pages.length > 0}
         onRefresh={refresh}
         contentContainerStyle={pages.length === 0 ? styles.empty : undefined}
         ListEmptyComponent={
-          !loading ? (
+          loading ? (
+            <PageListSkeleton />
+          ) : (
             <View style={styles.emptyContent}>
               <Ionicons name="document-text-outline" size={48} color="#D1D5DB" />
               <Text style={styles.emptyText}>No child pages</Text>
             </View>
-          ) : null
+          )
         }
       />
     </View>

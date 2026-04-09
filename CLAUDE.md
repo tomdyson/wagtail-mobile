@@ -34,6 +34,7 @@ npx tsc --noEmit         # TypeScript check
 - `lib/types.ts` — TypeScript interfaces mirroring wagtail-write-api response shapes (PageListItem, PageDetail, ImageItem, PaginatedList)
 - `lib/auth.ts` — SecureStore read/write for base URL and token
 - `lib/richtext.ts` — `markdownPayload()` helper for sending markdown to the API
+- `lib/authEvent.ts` — Simple event emitter for 401 auth failures (API layer → root layout disconnect)
 - `lib/hooks/useAuth.ts` — AuthContext and useAuth hook
 - `lib/hooks/usePages.ts` — usePageChildren, usePageDetail, usePageSearch hooks
 - `lib/hooks/useImages.ts` — useImageList, useImageDetail hooks
@@ -44,10 +45,12 @@ npx tsc --noEmit         # TypeScript check
 - `components/StatusBadge.tsx` — Green dot (live), orange dot (draft changes), grey dot (draft)
 - `components/ImageCard.tsx` — Thumbnail card for image grid
 - `components/DateField.tsx` — Native iOS date/datetime picker for date fields
+- `components/Skeleton.tsx` — Animated skeleton loading placeholders (page rows, image grid)
 
 ## Key behaviours
 
-- **Auth**: Login via `POST /auth/token/` with username/password. Token stored in expo-secure-store. "Disconnect" clears local storage only.
+- **Auth**: Login via `POST /auth/token/` with username/password. Token stored in expo-secure-store. "Disconnect" clears local storage only. Expired/revoked tokens (401 from any API call) automatically redirect to login via `authEvent.ts` listener.
+- **Auto-refresh**: Page list screens silently re-fetch data on focus (via `useFocusEffect`), so lists stay current after create/edit/delete without manual pull-to-refresh.
 - **Rich text**: Page detail requests `?rich_text_format=markdown`. Edits sent back as `{"format": "markdown", "content": "..."}`.
 - **Date fields**: Detected from the page type schema (`format: "date"` or `format: "date-time"`). Rendered as native iOS date pickers.
 - **Page creation**: Fetches schema to determine allowed child types under a parent. Shows type picker if multiple types are valid. Simple fields rendered from create_schema; StreamField/RichText/array fields skipped.

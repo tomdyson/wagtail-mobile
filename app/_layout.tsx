@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, View } from "react-native";
 
 import { clearCredentials, getCredentials, saveCredentials } from "../lib/auth";
+import { setAuthFailureListener } from "../lib/authEvent";
 import { AuthContext, type AuthState } from "../lib/hooks/useAuth";
 
 export default function RootLayout() {
@@ -48,6 +49,12 @@ export default function RootLayout() {
     setBaseUrl("");
     setToken("");
   }, []);
+
+  // Redirect to login on 401 from any API call
+  useEffect(() => {
+    setAuthFailureListener(() => disconnect());
+    return () => setAuthFailureListener(null);
+  }, [disconnect]);
 
   const authState: AuthState = {
     baseUrl,

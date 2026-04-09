@@ -7,11 +7,12 @@ Connects to any Wagtail site running [wagtail-write-api](https://github.com/tomd
 ## Features
 
 - **Page tree browser** — navigate the page hierarchy, see live/draft status at a glance
+- **Global search** — search all pages across the site
 - **Quick editing** — edit titles, slugs, dates, and text fields from your phone
 - **Rich text as Markdown** — rich text fields displayed and edited as Markdown
-- **Publish / unpublish** — manage page workflow with haptic feedback
+- **Publish / unpublish / delete** — manage page workflow with haptic feedback and confirmation dialogs
 - **Image gallery** — browse images with thumbnail grid and search
-- **Username/password login** — no manual token management
+- **Username/password login** — automatic re-login on token expiry
 
 ## Screenshots
 
@@ -92,6 +93,7 @@ wagtail-mobile/
     StatusBadge.tsx          Live/Draft/Draft changes indicator
     ImageCard.tsx            Thumbnail card for grid
     DateField.tsx            Native date/datetime picker
+    Skeleton.tsx             Animated skeleton loading placeholders
 ```
 
 ## Development

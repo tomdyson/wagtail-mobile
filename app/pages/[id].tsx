@@ -2,7 +2,6 @@ import * as Haptics from "expo-haptics";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
-  ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Platform,
@@ -15,6 +14,7 @@ import {
 } from "react-native";
 
 import { DateField } from "../../components/DateField";
+import { PageListSkeleton } from "../../components/Skeleton";
 import { StatusBadge } from "../../components/StatusBadge";
 import { ApiError, pages, schema, type SchemaDetail } from "../../lib/api";
 import { useAuth } from "../../lib/hooks/useAuth";
@@ -172,11 +172,40 @@ export default function PageDetailScreen() {
     ]);
   }, [page, baseUrl, token, refresh]);
 
+  const handleDelete = useCallback(async () => {
+    if (!page) return;
+    Alert.alert(
+      "Delete page",
+      `Are you sure you want to delete "${page.title}"? This cannot be undone.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await pages.delete(baseUrl, token, page.id);
+              await Haptics.notificationAsync(
+                Haptics.NotificationFeedbackType.Success
+              );
+              router.back();
+            } catch (e) {
+              const msg = e instanceof ApiError ? e.message : String(e);
+              Alert.alert("Delete failed", msg);
+            }
+          },
+        },
+      ]
+    );
+  }, [page, baseUrl, token, router]);
+
   if (loading && !page) {
     return (
-      <View style={styles.centered}>
+      <View style={styles.container}>
         <Stack.Screen options={{ title: "Page" }} />
-        <ActivityIndicator size="large" />
+        <View style={{ padding: 16 }}>
+          <PageListSkeleton count={4} />
+        </View>
       </View>
     );
   }
@@ -198,6 +227,7 @@ export default function PageDetailScreen() {
   const permissions = page.meta.user_permissions || [];
   const canPublish = permissions.includes("publish");
   const canEdit = permissions.includes("change");
+  const canDelete = permissions.includes("delete");
   const showPublish =
     canPublish && (!page.meta.live || page.meta.has_unpublished_changes);
   const showUnpublish = canPublish && page.meta.live;
@@ -425,6 +455,18 @@ export default function PageDetailScreen() {
                 <Text style={styles.unpublishButtonText}>Unpublish</Text>
               </Pressable>
             )}
+            {canDelete && (
+              <Pressable
+                style={({ pressed }) => [
+                  styles.actionButton,
+                  styles.deleteButton,
+                  pressed && styles.actionPressed,
+                ]}
+                onPress={handleDelete}
+              >
+                <Text style={styles.deleteButtonText}>Delete</Text>
+              </Pressable>
+            )}
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -545,6 +587,16 @@ const styles = StyleSheet.create({
   },
   unpublishButtonText: {
     color: "#6B7280",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  deleteButton: {
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#FCA5A5",
+  },
+  deleteButtonText: {
+    color: "#EF4444",
     fontSize: 16,
     fontWeight: "600",
   },
