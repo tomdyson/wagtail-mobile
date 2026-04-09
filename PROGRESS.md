@@ -46,7 +46,9 @@
 - [x] Date fields with native picker
 - [x] "Publish immediately" toggle
 - [x] StreamField support with "add block" buttons for editable block types
-- [x] Schema-aware (skips RichText/array fields)
+- [x] Image FK fields with image chooser modal (e.g. feed_image)
+- [x] Rich text fields with markdown editing
+- [x] Inline panel fields with add/remove/edit (e.g. authors)
 
 ### Image gallery
 - [x] Thumbnail grid (3 columns, padded to match page list)
@@ -72,6 +74,8 @@
 ## Next
 
 ### Medium priority
+- [ ] Unsaved changes warning (prevent accidental back-navigation data loss)
+- [ ] Boolean fields as toggle switches (currently render as text inputs)
 - [ ] Snippet FK chooser fields (schema has `widget: "snippet_chooser"` — needs snippet list API endpoint)
 - [ ] Page copy and move
 - [ ] Revision history viewer

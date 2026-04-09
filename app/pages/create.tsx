@@ -1,3 +1,4 @@
+import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
@@ -16,6 +17,7 @@ import {
 } from "react-native";
 
 import { DateField } from "../../components/DateField";
+import { ImageChooser } from "../../components/streamfield/ImageChooser";
 import { StreamFieldEditor } from "../../components/streamfield/StreamFieldEditor";
 import {
   ApiError,
@@ -32,6 +34,7 @@ import {
   isBlockEditable,
   prepareBlocksForSave,
 } from "../../lib/streamfield";
+import { markdownPayload } from "../../lib/richtext";
 import type { BlockTypeSchema, StreamFieldBlock } from "../../lib/types";
 
 const SKIP_FIELDS = new Set([
@@ -52,23 +55,85 @@ interface FieldInfo {
   required: boolean;
 }
 
-function extractSimpleFields(schemaDetail: SchemaDetail): FieldInfo[] {
+interface InlinePanelFieldDef {
+  [prop: string]: { type: string; required: boolean };
+}
+
+interface SchemaExtract {
+  simpleFields: FieldInfo[];
+  imageChooserFields: string[];
+  richTextFields: string[];
+  inlinePanels: { name: string; fields: InlinePanelFieldDef }[];
+}
+
+function extractFieldInfo(schemaDetail: SchemaDetail): SchemaExtract {
   const props = schemaDetail.create_schema.properties;
   const required = new Set(schemaDetail.create_schema.required || []);
   const streamFields = new Set(
     Object.keys(schemaDetail.streamfield_blocks || {})
   );
-  const richFields = new Set(schemaDetail.richtext_fields || []);
+  const richFieldNames = new Set(schemaDetail.richtext_fields || []);
+  const defs = (schemaDetail.create_schema as Record<string, unknown>)["$defs"] as
+    Record<string, Record<string, unknown>> | undefined;
 
-  const fields: FieldInfo[] = [];
+  const simpleFields: FieldInfo[] = [];
+  const imageChooserFields: string[] = [];
+  const richTextFields: string[] = [];
+  const inlinePanels: { name: string; fields: InlinePanelFieldDef }[] = [];
+
   for (const [name, def] of Object.entries(props)) {
     if (SKIP_FIELDS.has(name)) continue;
-    if (streamFields.has(name) || richFields.has(name)) continue;
+    if (streamFields.has(name)) continue;
 
     const d = def as Record<string, unknown>;
+
+    // Rich text fields
+    if (richFieldNames.has(name)) {
+      richTextFields.push(name);
+      continue;
+    }
+
+    // Image chooser FK fields
+    if (d.widget === "image_chooser") {
+      imageChooserFields.push(name);
+      continue;
+    }
+
+    // Inline panels: arrays with $ref to $defs
+    if (d.type === "array" && d.items && defs) {
+      const items = d.items as Record<string, unknown>;
+      const ref = items["$ref"] as string | undefined;
+      if (ref?.startsWith("#/$defs/")) {
+        const defName = ref.replace("#/$defs/", "");
+        const defSchema = defs[defName];
+        if (defSchema?.properties) {
+          const defProps = defSchema.properties as Record<string, Record<string, unknown>>;
+          const reqSet = new Set((defSchema.required as string[]) || []);
+          const fieldDefs: InlinePanelFieldDef = {};
+          for (const [pName, pDef] of Object.entries(defProps)) {
+            if (pName === "id") continue;
+            let pType = (pDef.type as string) || "";
+            if (!pType && pDef.anyOf) {
+              const types = (pDef.anyOf as Array<Record<string, unknown>>)
+                .filter((t) => t.type !== "null")
+                .map((t) => t.type as string);
+              pType = types[0] || "string";
+            }
+            fieldDefs[pName] = { type: pType || "string", required: reqSet.has(pName) };
+          }
+          if (Object.keys(fieldDefs).length > 0) {
+            inlinePanels.push({ name, fields: fieldDefs });
+          }
+        }
+        continue;
+      }
+      // Other arrays (e.g. ListBlock at top level) — skip
+      continue;
+    }
+
+    // Simple fields
     let fieldType = "string";
     let format: string | undefined;
-    if (d.type === "array") continue;
     if (d.type) fieldType = String(d.type);
     if (d.format) format = String(d.format);
     if (d.anyOf && Array.isArray(d.anyOf)) {
@@ -82,9 +147,10 @@ function extractSimpleFields(schemaDetail: SchemaDetail): FieldInfo[] {
       ? String(d.title)
       : name.replace(/_/g, " ").replace(/^\w/, (c: string) => c.toUpperCase());
 
-    fields.push({ name, title, type: fieldType, format, required: required.has(name) });
+    simpleFields.push({ name, title, type: fieldType, format, required: required.has(name) });
   }
-  return fields;
+
+  return { simpleFields, imageChooserFields, richTextFields, inlinePanels };
 }
 
 export default function CreatePageScreen() {
@@ -104,6 +170,11 @@ export default function CreatePageScreen() {
   const [title, setTitle] = useState("");
   const [slug, setSlug] = useState("");
   const [fieldValues, setFieldValues] = useState<Record<string, string>>({});
+  const [imageFieldValues, setImageFieldValues] = useState<Record<string, number | null>>({});
+  const [richTextValues, setRichTextValues] = useState<Record<string, string>>({});
+  const [inlinePanelValues, setInlinePanelValues] = useState<
+    Record<string, Record<string, unknown>[]>
+  >({});
   const [streamFieldValues, setStreamFieldValues] = useState<
     Record<string, StreamFieldBlock[]>
   >({});
@@ -177,6 +248,21 @@ export default function CreatePageScreen() {
           data[key] = value.trim();
         }
       }
+      for (const [key, value] of Object.entries(imageFieldValues)) {
+        if (value != null) {
+          data[key] = value;
+        }
+      }
+      for (const [key, value] of Object.entries(richTextValues)) {
+        if (value.trim()) {
+          data[key] = markdownPayload(value);
+        }
+      }
+      for (const [key, items] of Object.entries(inlinePanelValues)) {
+        if (items.length > 0) {
+          data[key] = items;
+        }
+      }
       for (const [key, blocks] of Object.entries(streamFieldValues)) {
         if (blocks.length > 0 && schemaDetail?.streamfield_blocks?.[key]) {
           data[key] = prepareBlocksForSave(
@@ -197,7 +283,8 @@ export default function CreatePageScreen() {
     }
   }, [selectedType, parentId, title, slug, publish, fieldValues, streamFieldValues, schemaDetail, baseUrl, token, router]);
 
-  const simpleFields = schemaDetail ? extractSimpleFields(schemaDetail) : [];
+  const extracted = schemaDetail ? extractFieldInfo(schemaDetail) : null;
+  const simpleFields = extracted?.simpleFields || [];
   const streamFieldEntries = Object.entries(
     schemaDetail?.streamfield_blocks || {}
   );
@@ -346,6 +433,116 @@ export default function CreatePageScreen() {
                 })}
               </View>
             )}
+
+            {extracted && extracted.imageChooserFields.length > 0 && (
+              <View style={styles.section}>
+                {extracted.imageChooserFields.map((name) => (
+                  <View key={name} style={styles.fieldGroup}>
+                    <Text style={styles.fieldLabel}>
+                      {name.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase())}
+                    </Text>
+                    <ImageChooser
+                      value={imageFieldValues[name] ?? null}
+                      onChange={(id) =>
+                        setImageFieldValues((prev) => ({ ...prev, [name]: id }))
+                      }
+                      editable={true}
+                    />
+                  </View>
+                ))}
+              </View>
+            )}
+
+            {extracted && extracted.richTextFields.length > 0 && (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Rich Text</Text>
+                {extracted.richTextFields.map((name) => (
+                  <View key={name} style={styles.fieldGroup}>
+                    <Text style={styles.fieldLabel}>
+                      {name.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase())}
+                    </Text>
+                    <TextInput
+                      style={[styles.fieldInput, styles.richTextInput]}
+                      value={richTextValues[name] || ""}
+                      onChangeText={(text) =>
+                        setRichTextValues((prev) => ({ ...prev, [name]: text }))
+                      }
+                      multiline
+                      textAlignVertical="top"
+                      placeholder="Markdown content..."
+                      placeholderTextColor="#D1D5DB"
+                    />
+                  </View>
+                ))}
+              </View>
+            )}
+
+            {extracted && extracted.inlinePanels.map(({ name, fields: panelFields }) => {
+              const items = inlinePanelValues[name] || [];
+              const fieldProps = Object.keys(panelFields);
+              return (
+                <View key={name} style={styles.section}>
+                  <Text style={styles.sectionTitle}>
+                    {name.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase())}
+                  </Text>
+                  {items.map((item, index) => (
+                    <View key={index} style={styles.inlineItem}>
+                      <View style={styles.inlineItemFields}>
+                        {fieldProps.map((prop) => (
+                          <View key={prop} style={styles.inlineField}>
+                            <Text style={styles.inlineFieldLabel}>
+                              {prop.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase())}
+                            </Text>
+                            <TextInput
+                              style={styles.fieldInput}
+                              value={String(item[prop] ?? "")}
+                              onChangeText={(text) => {
+                                const updated = items.map((it, i) =>
+                                  i === index ? { ...it, [prop]: text } : it
+                                );
+                                setInlinePanelValues((prev) => ({ ...prev, [name]: updated }));
+                              }}
+                              placeholder={panelFields[prop].required ? "Required" : "Optional"}
+                              placeholderTextColor="#D1D5DB"
+                            />
+                          </View>
+                        ))}
+                      </View>
+                      <Pressable
+                        onPress={() => {
+                          const updated = items.filter((_, i) => i !== index);
+                          setInlinePanelValues((prev) => ({ ...prev, [name]: updated }));
+                        }}
+                        hitSlop={8}
+                        style={styles.inlineDeleteButton}
+                      >
+                        <Ionicons name="trash-outline" size={16} color="#EF4444" />
+                      </Pressable>
+                    </View>
+                  ))}
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.inlineAddButton,
+                      pressed && styles.inlineAddButtonPressed,
+                    ]}
+                    onPress={() => {
+                      const newItem: Record<string, unknown> = {};
+                      for (const [prop, def] of Object.entries(panelFields)) {
+                        newItem[prop] = def.type === "integer" ? null : "";
+                      }
+                      setInlinePanelValues((prev) => ({
+                        ...prev,
+                        [name]: [...(prev[name] || []), newItem],
+                      }));
+                    }}
+                  >
+                    <Text style={styles.inlineAddButtonText}>
+                      + Add {name.replace(/_/g, " ").slice(0, -1)}
+                    </Text>
+                  </Pressable>
+                </View>
+              );
+            })}
 
             {streamFieldEntries.map(([fieldName, blockTypes]) => {
               const blocks = streamFieldValues[fieldName] || [];
@@ -520,6 +717,55 @@ const styles = StyleSheet.create({
   },
   addBlockChipText: {
     fontSize: 13,
+    color: "#3B82F6",
+    fontWeight: "500",
+  },
+  richTextInput: {
+    minHeight: 120,
+    fontFamily: "monospace",
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  inlineItem: {
+    flexDirection: "row",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderRadius: 8,
+    padding: 10,
+    backgroundColor: "#FAFAFA",
+    gap: 8,
+  },
+  inlineItemFields: {
+    flex: 1,
+    gap: 6,
+  },
+  inlineField: {
+    gap: 2,
+  },
+  inlineFieldLabel: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#6B7280",
+    textTransform: "uppercase",
+    letterSpacing: 0.3,
+  },
+  inlineDeleteButton: {
+    justifyContent: "center",
+    padding: 4,
+  },
+  inlineAddButton: {
+    paddingVertical: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#3B82F6",
+    borderStyle: "dashed",
+    alignItems: "center",
+  },
+  inlineAddButtonPressed: {
+    backgroundColor: "#EFF6FF",
+  },
+  inlineAddButtonText: {
+    fontSize: 14,
     color: "#3B82F6",
     fontWeight: "500",
   },
