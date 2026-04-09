@@ -7,7 +7,7 @@
 - [x] Token stored in SecureStore
 - [x] Auth gate in root layout (redirects to login if not configured)
 - [x] Disconnect (clears local credentials)
-- [x] Settings gear icon in Pages tab header
+- [x] Settings tab (connected site URL, app version, disconnect)
 
 ### Page tree browser
 - [x] Root page children list (parent=1)
@@ -40,6 +40,7 @@
 - [x] Unsaved changes warning (usePreventRemove with discard/keep editing dialog)
 - [x] Keyboard-avoiding scroll view
 - [x] Delete page with confirmation dialog (permission-aware)
+- [x] Live status badge links to published page (in-app browser via expo-web-browser)
 
 ### Page creation
 - [x] "+" button in page tree and children screens
@@ -94,7 +95,7 @@
 - [ ] Dark mode support (respect system setting, update all hardcoded colors)
 - [ ] Multi-site support (connect to multiple Wagtail instances, switcher in settings)
 - [ ] Relative timestamps in page info ("2 hours ago" instead of raw dates)
-- [ ] Page URL sharing (open/share the live page URL from page detail)
+- [x] Page URL sharing (tap live badge to open published page in-app)
 
 ### Stretch
 - [ ] Revision history viewer (needs API endpoint)
