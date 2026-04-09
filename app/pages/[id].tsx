@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import { Stack, useLocalSearchParams, useRouter } from "expo-router";
+import { Stack, useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
   Alert,
@@ -9,6 +9,7 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   View,
@@ -82,6 +83,7 @@ export default function PageDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { baseUrl, token } = useAuth();
   const router = useRouter();
+  const navigation = useNavigation();
   const { page, loading, error, refresh } = usePageDetail(Number(id), "markdown");
 
   const [title, setTitle] = useState("");
@@ -115,6 +117,22 @@ export default function PageDetailScreen() {
     (title !== page.title ||
       slug !== page.slug ||
       Object.keys(editedFields).length > 0);
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener("beforeRemove", (e) => {
+      if (!isDirty) return;
+      e.preventDefault();
+      Alert.alert("Unsaved changes", "Discard your changes?", [
+        { text: "Keep editing", style: "cancel" },
+        {
+          text: "Discard",
+          style: "destructive",
+          onPress: () => navigation.dispatch(e.data.action),
+        },
+      ]);
+    });
+    return unsubscribe;
+  }, [navigation, isDirty]);
 
   const handleSave = useCallback(async () => {
     if (!page) return;
@@ -418,6 +436,22 @@ export default function PageDetailScreen() {
                       mode={dateMode}
                       editable={canEdit}
                     />
+                  );
+                }
+                if (typeof (getFieldValue(key) ?? value) === "boolean") {
+                  return (
+                    <View key={key} style={styles.switchRow}>
+                      <Text style={styles.switchLabel}>
+                        {key.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase())}
+                      </Text>
+                      <Switch
+                        value={Boolean(getFieldValue(key) ?? value)}
+                        onValueChange={(v) =>
+                          setEditedFields((prev) => ({ ...prev, [key]: v }))
+                        }
+                        disabled={!canEdit}
+                      />
+                    </View>
                   );
                 }
                 return (
@@ -747,6 +781,15 @@ const styles = StyleSheet.create({
     color: "#6B7280",
     paddingVertical: 4,
     fontFamily: "monospace",
+  },
+  switchRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  switchLabel: {
+    fontSize: 16,
+    color: "#111827",
   },
   viewOnly: {
     fontSize: 11,

@@ -36,6 +36,8 @@
 - [x] Save button in header (appears when fields are dirty)
 - [x] Publish / unpublish actions with haptic feedback
 - [x] Permission-aware (buttons based on `meta.user_permissions`)
+- [x] Boolean fields as toggle switches (detected from value type)
+- [x] Unsaved changes warning (beforeRemove listener prevents accidental back-navigation)
 - [x] Keyboard-avoiding scroll view
 - [x] Delete page with confirmation dialog (permission-aware)
 
@@ -75,8 +77,6 @@
 ## Next
 
 ### Medium priority
-- [ ] Unsaved changes warning (prevent accidental back-navigation data loss)
-- [ ] Boolean fields as toggle switches (currently render as text inputs)
 - [ ] Snippet FK chooser fields (schema has `widget: "snippet_chooser"` — needs snippet list API endpoint)
 - [ ] Page copy and move
 - [ ] Revision history viewer
