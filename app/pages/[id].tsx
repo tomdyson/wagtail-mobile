@@ -15,6 +15,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import * as WebBrowser from "expo-web-browser";
 
 import { DateField } from "../../components/DateField";
 import { PageListSkeleton } from "../../components/Skeleton";
@@ -385,10 +386,24 @@ export default function PageDetailScreen() {
           <View style={styles.section}>
             <View style={styles.statusRow}>
               <Text style={styles.typeLabel}>{shortType}</Text>
-              <StatusBadge
-                live={page.meta.live}
-                hasUnpublishedChanges={page.meta.has_unpublished_changes}
-              />
+              {page.meta.live && page.meta.url_path ? (
+                <Pressable
+                  onPress={() => {
+                    const origin = new URL(baseUrl).origin;
+                    WebBrowser.openBrowserAsync(origin + page.meta.url_path);
+                  }}
+                >
+                  <StatusBadge
+                    live={page.meta.live}
+                    hasUnpublishedChanges={page.meta.has_unpublished_changes}
+                  />
+                </Pressable>
+              ) : (
+                <StatusBadge
+                  live={page.meta.live}
+                  hasUnpublishedChanges={page.meta.has_unpublished_changes}
+                />
+              )}
             </View>
 
             <View style={styles.fieldGroup}>
