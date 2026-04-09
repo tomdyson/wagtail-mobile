@@ -1,0 +1,22 @@
+{
+  "expo": {
+    "name": "Wagtail Mobile",
+    "slug": "wagtail-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "wagtail-mobile",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.tomdyson.wagtailmobile"
+    },
+    "plugins": ["expo-router", "expo-secure-store"]
+  }
+}

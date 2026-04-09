@@ -1,0 +1,82 @@
+# Progress
+
+## Done
+
+### Auth
+- [x] Username/password login via `POST /auth/token/`
+- [x] Token stored in SecureStore
+- [x] Auth gate in root layout (redirects to login if not configured)
+- [x] Disconnect (clears local credentials)
+- [x] Settings gear icon in Pages tab header
+
+### Page tree browser
+- [x] Root page children list (parent=1)
+- [x] Recursive drill-down into any page's children
+- [x] Page title, type label, live/draft status badge on each row
+- [x] Tap title to edit, tap chevron to drill into children
+- [x] Pull-to-refresh
+- [x] Empty state when no children
+
+### Page detail/edit
+- [x] View all page fields with editable title and slug
+- [x] Rich text fields displayed and edited as Markdown (via API `?rich_text_format=markdown`)
+- [x] Date/datetime fields with native iOS picker (detected from schema)
+- [x] Simple text/number fields editable
+- [x] StreamField/complex fields shown read-only
+- [x] Save button in header (appears when fields are dirty)
+- [x] Publish / unpublish actions with haptic feedback
+- [x] Permission-aware (buttons based on `meta.user_permissions`)
+- [x] Keyboard-avoiding scroll view
+
+### Page creation
+- [x] "+" button in page tree and children screens
+- [x] Type picker filtered by parent's `allowed_subpage_types`
+- [x] Auto-skip picker when only one type is valid
+- [x] Title, slug, and simple fields from schema
+- [x] Date fields with native picker
+- [x] "Publish immediately" toggle
+- [x] Schema-aware (skips StreamField/RichText/array fields)
+
+### Image gallery
+- [x] Thumbnail grid (3 columns)
+- [x] Search bar
+- [x] Pull-to-refresh
+- [x] Image detail with full-size preview
+- [x] Share button (native share sheet)
+- [x] Empty state
+
+### Infrastructure
+- [x] Expo Router file-based routing with Stack + Tabs
+- [x] TypeScript (compiles clean)
+- [x] Typed API client (plain fetch, no dependencies)
+- [x] Safe area / status bar handling
+- [x] iOS-native navigation (back buttons, headers)
+
+## Next
+
+### High priority
+- [ ] Image upload from camera roll
+- [ ] Page deletion (with confirmation)
+- [ ] Refresh page list after creating/editing a page (currently stale until pull-to-refresh)
+- [ ] Search pages globally (not just within a parent)
+- [ ] Error handling for expired/revoked tokens (redirect to login)
+
+### Medium priority
+- [ ] StreamField body editing (at least paragraph blocks as markdown)
+- [ ] Page copy and move
+- [ ] Revision history viewer
+- [ ] Snippets CRUD
+- [ ] Infinite scroll pagination on page lists
+- [ ] Loading skeletons instead of spinners
+- [ ] Dark mode support (currently light only)
+
+### Low priority / nice to have
+- [ ] Offline indicator / network error recovery
+- [ ] App icon and splash screen (currently Expo defaults)
+- [ ] Push notifications for publish/workflow events
+- [ ] iPad layout (multi-column)
+- [ ] Breadcrumb trail showing current position in tree
+- [ ] QR code login (scan from Wagtail admin)
+- [ ] Image auth headers (if images are behind auth)
+- [ ] Automated tests (unit + integration)
+- [ ] EAS Build for TestFlight distribution
