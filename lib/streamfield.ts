@@ -23,6 +23,9 @@ export function isBlockEditable(schema: BlockSchema): boolean {
       isBlockEditable(child)
     );
   }
+  if (schema.type === "array" && schema.items) {
+    return isBlockEditable(schema.items);
+  }
   return false;
 }
 
@@ -49,6 +52,8 @@ export function defaultValueForBlock(schema: BlockSchema): unknown {
           defaultValueForBlock(child),
         ])
       );
+    case "array":
+      return [];
     default:
       return null;
   }
@@ -99,6 +104,25 @@ function prepareStructForSave(
   return result;
 }
 
+function prepareValueForSave(value: unknown, schema: BlockSchema): unknown {
+  if (schema.type === "richtext" && typeof value === "string") {
+    return markdownPayload(value);
+  }
+  if (
+    schema.type === "object" &&
+    schema.properties &&
+    typeof value === "object" &&
+    value !== null &&
+    !Array.isArray(value)
+  ) {
+    return prepareStructForSave(value as Record<string, unknown>, schema);
+  }
+  if (schema.type === "array" && schema.items && Array.isArray(value)) {
+    return value.map((item) => prepareValueForSave(item, schema.items!));
+  }
+  return value;
+}
+
 export function prepareBlocksForSave(
   blocks: StreamFieldBlock[],
   blockTypes: BlockTypeSchema[]
@@ -107,23 +131,6 @@ export function prepareBlocksForSave(
     const schema = findBlockSchema(block.type, blockTypes);
     if (!schema) return block;
 
-    if (schema.type === "richtext" && typeof block.value === "string") {
-      return { ...block, value: markdownPayload(block.value) };
-    }
-    if (
-      schema.type === "object" &&
-      typeof block.value === "object" &&
-      block.value !== null &&
-      !Array.isArray(block.value)
-    ) {
-      return {
-        ...block,
-        value: prepareStructForSave(
-          block.value as Record<string, unknown>,
-          schema
-        ),
-      };
-    }
-    return block;
+    return { ...block, value: prepareValueForSave(block.value, schema) };
   });
 }

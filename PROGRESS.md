@@ -26,7 +26,8 @@
 - [x] Rich text fields displayed and edited as Markdown (via API `?rich_text_format=markdown`)
 - [x] Date/datetime fields with native iOS picker (detected from schema)
 - [x] Simple text/number fields editable
-- [x] StreamField inline editing for text-based blocks (RichTextBlock as markdown, CharBlock, ChoiceBlock, StructBlocks composed of these). ListBlocks and snippet choosers shown read-only.
+- [x] StreamField inline editing for text-based blocks (RichTextBlock as markdown, CharBlock, ChoiceBlock, StructBlocks composed of these). Snippet choosers shown read-only.
+- [x] StreamField ListBlock editing (e.g. related_pages, gallery) with add/remove for lists of choosers and structs
 - [x] StreamField image chooser with modal search grid and thumbnail preview
 - [x] StreamField page chooser with modal search list and title preview
 - [x] StreamField block add/delete/reorder (add from editable types, delete with confirmation, up/down reorder)

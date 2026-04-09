@@ -1,5 +1,7 @@
+import { Ionicons } from "@expo/vector-icons";
 import { useState } from "react";
 import {
+  Alert,
   Pressable,
   StyleSheet,
   Switch,
@@ -9,6 +11,7 @@ import {
 } from "react-native";
 
 import { DateField } from "../DateField";
+import { defaultValueForBlock } from "../../lib/streamfield";
 import type { BlockSchema } from "../../lib/types";
 import { ImageChooser } from "./ImageChooser";
 import { PageChooser } from "./PageChooser";
@@ -139,6 +142,135 @@ const structStyles = StyleSheet.create({
   },
 });
 
+function ListBlockEditor({
+  value,
+  schema,
+  onChange,
+  editable,
+}: {
+  value: unknown[];
+  schema: BlockSchema;
+  onChange: (v: unknown[]) => void;
+  editable: boolean;
+}) {
+  const itemSchema = schema.items!;
+  const itemLabel = itemSchema.type.replace(/_/g, " ");
+
+  return (
+    <View style={listStyles.container}>
+      {value.map((item, index) => (
+        <View key={index} style={listStyles.item}>
+          <View style={listStyles.itemContent}>
+            <BlockEditor
+              value={item}
+              schema={itemSchema}
+              onChange={(newVal) => {
+                const updated = [...value];
+                updated[index] = newVal;
+                onChange(updated);
+              }}
+              editable={editable}
+            />
+          </View>
+          {editable && (
+            <View style={listStyles.itemActions}>
+              {index > 0 && (
+                <Pressable
+                  onPress={() => {
+                    const updated = [...value];
+                    [updated[index - 1], updated[index]] = [updated[index], updated[index - 1]];
+                    onChange(updated);
+                  }}
+                  hitSlop={8}
+                >
+                  <Ionicons name="chevron-up" size={16} color="#9CA3AF" />
+                </Pressable>
+              )}
+              {index < value.length - 1 && (
+                <Pressable
+                  onPress={() => {
+                    const updated = [...value];
+                    [updated[index], updated[index + 1]] = [updated[index + 1], updated[index]];
+                    onChange(updated);
+                  }}
+                  hitSlop={8}
+                >
+                  <Ionicons name="chevron-down" size={16} color="#9CA3AF" />
+                </Pressable>
+              )}
+              <Pressable
+                onPress={() => {
+                  Alert.alert("Remove item", `Remove this ${itemLabel}?`, [
+                    { text: "Cancel", style: "cancel" },
+                    {
+                      text: "Remove",
+                      style: "destructive",
+                      onPress: () => onChange(value.filter((_, i) => i !== index)),
+                    },
+                  ]);
+                }}
+                hitSlop={8}
+              >
+                <Ionicons name="trash-outline" size={14} color="#EF4444" />
+              </Pressable>
+            </View>
+          )}
+        </View>
+      ))}
+      {editable && (
+        <Pressable
+          style={({ pressed }) => [
+            listStyles.addButton,
+            pressed && listStyles.addButtonPressed,
+          ]}
+          onPress={() => onChange([...value, defaultValueForBlock(itemSchema)])}
+        >
+          <Text style={listStyles.addButtonText}>+ Add {itemLabel}</Text>
+        </Pressable>
+      )}
+    </View>
+  );
+}
+
+const listStyles = StyleSheet.create({
+  container: {
+    gap: 8,
+  },
+  item: {
+    flexDirection: "row",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderRadius: 8,
+    padding: 8,
+    backgroundColor: "#FAFAFA",
+    gap: 8,
+  },
+  itemContent: {
+    flex: 1,
+  },
+  itemActions: {
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 4,
+  },
+  addButton: {
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#3B82F6",
+    borderStyle: "dashed",
+    alignItems: "center",
+  },
+  addButtonPressed: {
+    backgroundColor: "#EFF6FF",
+  },
+  addButtonText: {
+    fontSize: 13,
+    color: "#3B82F6",
+    fontWeight: "500",
+  },
+});
+
 export function BlockEditor({ value, schema, onChange, editable }: Props) {
   if (schema.type === "richtext") {
     return (
@@ -256,6 +388,17 @@ export function BlockEditor({ value, schema, onChange, editable }: Props) {
     return (
       <PageChooser
         value={value}
+        onChange={onChange}
+        editable={editable}
+      />
+    );
+  }
+
+  if (schema.type === "array" && schema.items) {
+    return (
+      <ListBlockEditor
+        value={Array.isArray(value) ? value : []}
+        schema={schema}
         onChange={onChange}
         editable={editable}
       />
