@@ -1,5 +1,6 @@
 import { emitAuthFailure } from "./authEvent";
 import type {
+  BlockTypeSchema,
   ImageItem,
   PageDetail,
   PageListItem,
@@ -182,7 +183,7 @@ export interface SchemaDetail {
     properties: Record<string, unknown>;
     required?: string[];
   };
-  streamfield_blocks?: Record<string, unknown[]>;
+  streamfield_blocks?: Record<string, BlockTypeSchema[]>;
   richtext_fields?: string[];
 }
 

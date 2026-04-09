@@ -16,6 +16,7 @@ import {
 } from "react-native";
 
 import { DateField } from "../../components/DateField";
+import { StreamFieldEditor } from "../../components/streamfield/StreamFieldEditor";
 import {
   ApiError,
   pageActions,
@@ -24,6 +25,14 @@ import {
   type SchemaPageType,
 } from "../../lib/api";
 import { useAuth } from "../../lib/hooks/useAuth";
+import {
+  defaultValueForBlock,
+  findBlockSchema,
+  generateBlockId,
+  isBlockEditable,
+  prepareBlocksForSave,
+} from "../../lib/streamfield";
+import type { BlockTypeSchema, StreamFieldBlock } from "../../lib/types";
 
 const SKIP_FIELDS = new Set([
   "type",
@@ -95,6 +104,9 @@ export default function CreatePageScreen() {
   const [title, setTitle] = useState("");
   const [slug, setSlug] = useState("");
   const [fieldValues, setFieldValues] = useState<Record<string, string>>({});
+  const [streamFieldValues, setStreamFieldValues] = useState<
+    Record<string, StreamFieldBlock[]>
+  >({});
   const [publish, setPublish] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -165,6 +177,14 @@ export default function CreatePageScreen() {
           data[key] = value.trim();
         }
       }
+      for (const [key, blocks] of Object.entries(streamFieldValues)) {
+        if (blocks.length > 0 && schemaDetail?.streamfield_blocks?.[key]) {
+          data[key] = prepareBlocksForSave(
+            blocks,
+            schemaDetail.streamfield_blocks[key]
+          );
+        }
+      }
 
       const page = await pageActions.create(baseUrl, token, data);
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -175,9 +195,12 @@ export default function CreatePageScreen() {
     } finally {
       setSaving(false);
     }
-  }, [selectedType, parentId, title, slug, publish, fieldValues, baseUrl, token, router]);
+  }, [selectedType, parentId, title, slug, publish, fieldValues, streamFieldValues, schemaDetail, baseUrl, token, router]);
 
   const simpleFields = schemaDetail ? extractSimpleFields(schemaDetail) : [];
+  const streamFieldEntries = Object.entries(
+    schemaDetail?.streamfield_blocks || {}
+  );
 
   if (loadingTypes) {
     return (
@@ -324,6 +347,62 @@ export default function CreatePageScreen() {
               </View>
             )}
 
+            {streamFieldEntries.map(([fieldName, blockTypes]) => {
+              const blocks = streamFieldValues[fieldName] || [];
+              const label = fieldName
+                .replace(/_/g, " ")
+                .replace(/^\w/, (c) => c.toUpperCase());
+              // Filter to editable block types for the add picker
+              const editableTypes = blockTypes.filter((bt) =>
+                isBlockEditable(bt.schema)
+              );
+
+              return (
+                <View key={fieldName} style={styles.section}>
+                  <Text style={styles.sectionTitle}>{label}</Text>
+                  <StreamFieldEditor
+                    blocks={blocks}
+                    blockTypes={blockTypes}
+                    onChange={(newBlocks) =>
+                      setStreamFieldValues((prev) => ({
+                        ...prev,
+                        [fieldName]: newBlocks,
+                      }))
+                    }
+                    editable={true}
+                  />
+                  {editableTypes.length > 0 && (
+                    <View style={styles.addBlockRow}>
+                      {editableTypes.map((bt) => (
+                        <Pressable
+                          key={bt.type}
+                          style={({ pressed }) => [
+                            styles.addBlockChip,
+                            pressed && styles.addBlockChipPressed,
+                          ]}
+                          onPress={() => {
+                            const newBlock: StreamFieldBlock = {
+                              type: bt.type,
+                              value: defaultValueForBlock(bt.schema),
+                              id: generateBlockId(),
+                            };
+                            setStreamFieldValues((prev) => ({
+                              ...prev,
+                              [fieldName]: [...(prev[fieldName] || []), newBlock],
+                            }));
+                          }}
+                        >
+                          <Text style={styles.addBlockChipText}>
+                            + {bt.type.replace(/_/g, " ")}
+                          </Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                  )}
+                </View>
+              );
+            })}
+
             <View style={styles.section}>
               <View style={styles.switchRow}>
                 <Text style={styles.switchLabel}>Publish immediately</Text>
@@ -422,6 +501,27 @@ const styles = StyleSheet.create({
     color: "#3B82F6",
     fontSize: 16,
     fontWeight: "600",
+  },
+  addBlockRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  addBlockChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#3B82F6",
+    borderStyle: "dashed",
+  },
+  addBlockChipPressed: {
+    backgroundColor: "#EFF6FF",
+  },
+  addBlockChipText: {
+    fontSize: 13,
+    color: "#3B82F6",
+    fontWeight: "500",
   },
   emptyText: {
     fontSize: 16,

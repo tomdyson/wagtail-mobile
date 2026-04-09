@@ -32,6 +32,25 @@ export interface PageDetail {
   [field: string]: unknown;
 }
 
+export interface StreamFieldBlock {
+  type: string;
+  value: unknown;
+  id: string;
+}
+
+export interface BlockTypeSchema {
+  type: string;
+  schema: BlockSchema;
+}
+
+export interface BlockSchema {
+  type: string;
+  properties?: Record<string, BlockSchema & { required?: boolean }>;
+  items?: BlockSchema;
+  enum?: string[];
+  block_types?: BlockTypeSchema[];
+}
+
 export interface ImageRenditions {
   thumbnail?: string;
   medium?: string;

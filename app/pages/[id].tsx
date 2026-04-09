@@ -16,11 +16,13 @@ import {
 import { DateField } from "../../components/DateField";
 import { PageListSkeleton } from "../../components/Skeleton";
 import { StatusBadge } from "../../components/StatusBadge";
+import { StreamFieldEditor } from "../../components/streamfield/StreamFieldEditor";
 import { ApiError, pages, schema, type SchemaDetail } from "../../lib/api";
 import { useAuth } from "../../lib/hooks/useAuth";
 import { usePageDetail } from "../../lib/hooks/usePages";
 import { markdownPayload } from "../../lib/richtext";
-import type { PageDetail } from "../../lib/types";
+import { prepareBlocksForSave } from "../../lib/streamfield";
+import type { PageDetail, StreamFieldBlock } from "../../lib/types";
 
 const SKIP_FIELDS = new Set([
   "id",
@@ -120,7 +122,16 @@ export default function PageDetailScreen() {
       if (title !== page.title) data.title = title;
       if (slug !== page.slug) data.slug = slug;
       for (const [key, value] of Object.entries(editedFields)) {
-        if (richTextFieldNames.has(key) && typeof value === "string") {
+        if (
+          streamFieldNames.has(key) &&
+          Array.isArray(value) &&
+          schemaDetail?.streamfield_blocks?.[key]
+        ) {
+          data[key] = prepareBlocksForSave(
+            value as StreamFieldBlock[],
+            schemaDetail.streamfield_blocks[key]
+          );
+        } else if (richTextFieldNames.has(key) && typeof value === "string") {
           data[key] = markdownPayload(value);
         } else {
           data[key] = value;
@@ -135,7 +146,7 @@ export default function PageDetailScreen() {
     } finally {
       setSaving(false);
     }
-  }, [page, title, slug, editedFields, baseUrl, token, refresh]);
+  }, [page, title, slug, editedFields, baseUrl, token, refresh, schemaDetail]);
 
   const handlePublish = useCallback(async () => {
     if (!page) return;
@@ -233,6 +244,9 @@ export default function PageDetailScreen() {
   const showUnpublish = canPublish && page.meta.live;
 
   const richTextFieldNames = new Set(schemaDetail?.richtext_fields || []);
+  const streamFieldNames = new Set(
+    Object.keys(schemaDetail?.streamfield_blocks || {})
+  );
   const extraFields = Object.entries(page).filter(
     ([key]) => !SKIP_FIELDS.has(key)
   );
@@ -242,7 +256,12 @@ export default function PageDetailScreen() {
   const simpleFields = extraFields.filter(
     ([key, value]) => isSimpleField(value) && !richTextFieldNames.has(key)
   );
-  const complexFields = extraFields.filter(([, value]) => isComplexField(value));
+  const streamFields = extraFields.filter(
+    ([key, value]) => streamFieldNames.has(key) && Array.isArray(value)
+  );
+  const complexFields = extraFields.filter(
+    ([key, value]) => isComplexField(value) && !streamFieldNames.has(key)
+  );
 
   const shortType = page.meta.type
     .split(".")
@@ -388,6 +407,26 @@ export default function PageDetailScreen() {
               })}
             </View>
           )}
+
+          {streamFields.map(([key]) => (
+            <View key={key} style={styles.section}>
+              <Text style={styles.sectionTitle}>
+                {key.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase())}
+              </Text>
+              <StreamFieldEditor
+                blocks={
+                  (getFieldValue(key) as StreamFieldBlock[]) || []
+                }
+                blockTypes={
+                  schemaDetail?.streamfield_blocks?.[key] || []
+                }
+                onChange={(newBlocks) =>
+                  setEditedFields((prev) => ({ ...prev, [key]: newBlocks }))
+                }
+                editable={canEdit}
+              />
+            </View>
+          ))}
 
           {complexFields.length > 0 && (
             <View style={styles.section}>
