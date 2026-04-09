@@ -135,6 +135,11 @@ export default function PageDetailScreen() {
           );
         } else if (richTextFieldNames.has(key) && typeof value === "string") {
           data[key] = markdownPayload(value);
+        } else if (inlinePanelSchemas.has(key) && Array.isArray(value)) {
+          // Strip sort_order — the API manages ordering from array position
+          data[key] = (value as Record<string, unknown>[]).map(
+            ({ sort_order, ...rest }) => rest
+          );
         } else {
           data[key] = value;
         }
