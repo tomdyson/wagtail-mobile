@@ -3,7 +3,6 @@ import { Stack, useRouter } from "expo-router";
 import { useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   Pressable,
   StyleSheet,
@@ -14,12 +13,10 @@ import {
 
 import { PageRow } from "../../components/PageRow";
 import { PageListSkeleton } from "../../components/Skeleton";
-import { useAuth } from "../../lib/hooks/useAuth";
 import { usePageChildren, usePageSearch } from "../../lib/hooks/usePages";
 
 export default function PagesTab() {
   const router = useRouter();
-  const { disconnect } = useAuth();
   const [search, setSearch] = useState("");
   const isSearching = search.trim().length > 0;
 
@@ -31,35 +28,20 @@ export default function PagesTab() {
   const active = isSearching ? searchResults : children;
   const { pages, loading, error, refresh, loadMore, loadingMore, hasMore } = active;
 
-  const handleDisconnect = () => {
-    Alert.alert("Disconnect", "Remove this site connection?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Disconnect",
-        style: "destructive",
-        onPress: () => disconnect(),
-      },
-    ]);
-  };
-
   return (
     <View style={styles.container}>
       <Stack.Screen
         options={{
           headerRight: () => (
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 16, marginRight: 8 }}>
-              <Pressable
-                onPress={() =>
-                  router.push("/pages/create?parentId=1&parentType=wagtailcore.Page")
-                }
-                hitSlop={8}
-              >
-                <Ionicons name="add-circle-outline" size={24} color="#3B82F6" />
-              </Pressable>
-              <Pressable onPress={handleDisconnect} hitSlop={8}>
-                <Ionicons name="settings-outline" size={22} color="#6B7280" />
-              </Pressable>
-            </View>
+            <Pressable
+              onPress={() =>
+                router.push("/pages/create?parentId=1&parentType=wagtailcore.Page")
+              }
+              hitSlop={8}
+              style={{ marginRight: 8 }}
+            >
+              <Ionicons name="add-circle-outline" size={24} color="#3B82F6" />
+            </Pressable>
           ),
         }}
       />
