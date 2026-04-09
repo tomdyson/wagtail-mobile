@@ -76,7 +76,7 @@ export default function RootLayout() {
   return (
     <AuthContext.Provider value={authState}>
       <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="(tabs)" options={{ headerShown: false, title: "Pages" }} />
         <Stack.Screen name="login" options={{ headerShown: false }} />
         <Stack.Screen name="pages/create" options={{ title: "New Page" }} />
         <Stack.Screen name="pages/[id]" options={{ title: "Page" }} />
