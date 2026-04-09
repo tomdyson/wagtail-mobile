@@ -77,17 +77,24 @@
 ## Next
 
 ### Medium priority
+- [ ] QR code login — scan a code from Wagtail admin to connect instantly (needs: management command or admin view in wagtail-write-api to generate QR containing `{url, token}`, expo-camera barcode scanner in mobile app, bypass username/password flow)
+- [ ] Page copy and move (API endpoints already exist)
 - [ ] Snippet FK chooser fields (schema has `widget: "snippet_chooser"` — needs snippet list API endpoint)
-- [ ] Page copy and move
-- [ ] Revision history viewer
-- [ ] Snippets CRUD
-- [ ] Dark mode support (currently light only)
+- [ ] Snippets CRUD (API exists at `/snippets/`, needs mobile screens)
 
-### Low priority / nice to have
+### Polish
+- [ ] App icon and splash screen (currently Expo defaults — essential for TestFlight/App Store)
+- [ ] EAS Build for TestFlight distribution
+- [ ] Save confirmation feedback (brief "Saved" toast or banner — currently only haptic)
+- [ ] Dark mode support (respect system setting, update all hardcoded colors)
+- [ ] Multi-site support (connect to multiple Wagtail instances, switcher in settings)
+- [ ] Relative timestamps in page info ("2 hours ago" instead of raw dates)
+- [ ] Page URL sharing (open/share the live page URL from page detail)
+
+### Stretch
+- [ ] Revision history viewer (needs API endpoint)
 - [ ] Offline indicator / network error recovery
-- [ ] App icon and splash screen (currently Expo defaults)
 - [ ] Push notifications for publish/workflow events
 - [ ] iPad layout (multi-column)
-- [ ] QR code login (scan from Wagtail admin)
+- [ ] Biometric unlock (FaceID/TouchID gate before showing content)
 - [ ] Automated tests (unit + integration)
-- [ ] EAS Build for TestFlight distribution
