@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
+import { useFocusEffect } from "expo-router";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { images, type ImageFilters } from "../api";
 import type { ImageItem } from "../types";
@@ -10,6 +11,7 @@ export function useImageList(filters?: ImageFilters) {
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  const hasFetched = useRef(false);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -25,9 +27,28 @@ export function useImageList(filters?: ImageFilters) {
     }
   }, [baseUrl, token, JSON.stringify(filters)]);
 
+  const silentRefresh = useCallback(async () => {
+    try {
+      const result = await images.list(baseUrl, token, filters);
+      setData(result.items);
+      setTotalCount(result.meta.total_count);
+    } catch {
+      // silent
+    }
+  }, [baseUrl, token, JSON.stringify(filters)]);
+
   useEffect(() => {
     refresh();
+    hasFetched.current = true;
   }, [refresh]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (hasFetched.current) {
+        silentRefresh();
+      }
+    }, [silentRefresh])
+  );
 
   return { images: data, totalCount, loading, error, refresh };
 }

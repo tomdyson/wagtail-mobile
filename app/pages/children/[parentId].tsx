@@ -1,6 +1,13 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
-import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  FlatList,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 
 import { PageRow } from "../../../components/PageRow";
 import { PageListSkeleton } from "../../../components/Skeleton";
@@ -9,10 +16,20 @@ import { usePageChildren, usePageDetail } from "../../../lib/hooks/usePages";
 export default function PageChildrenScreen() {
   const { parentId } = useLocalSearchParams<{ parentId: string }>();
   const router = useRouter();
-  const { pages, loading, error, refresh } = usePageChildren(Number(parentId));
+  const { pages, loading, loadingMore, hasMore, error, refresh, loadMore } = usePageChildren(Number(parentId));
   const { page: parent } = usePageDetail(Number(parentId));
 
   const parentType = parent?.meta.type;
+
+  // Build breadcrumb from url_path (e.g. "/events/sub-section/" → ["Home", "Events", "Sub Section"])
+  const breadcrumbs = parent?.meta.url_path
+    ? ["Home", ...parent.meta.url_path
+        .split("/")
+        .filter(Boolean)
+        .map((seg) =>
+          seg.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
+        )]
+    : null;
 
   return (
     <View style={styles.container}>
@@ -35,6 +52,17 @@ export default function PageChildrenScreen() {
         }}
       />
 
+      {breadcrumbs && (
+        <View style={styles.breadcrumbBar}>
+          {breadcrumbs.map((crumb, i) => (
+            <Text key={i} style={styles.breadcrumbText}>
+              {i > 0 && <Text style={styles.breadcrumbSep}> › </Text>}
+              {crumb}
+            </Text>
+          ))}
+        </View>
+      )}
+
       {error && (
         <View style={styles.errorBanner}>
           <Text style={styles.errorText}>{error.message}</Text>
@@ -53,7 +81,14 @@ export default function PageChildrenScreen() {
         )}
         refreshing={loading && pages.length > 0}
         onRefresh={refresh}
+        onEndReached={hasMore ? loadMore : undefined}
+        onEndReachedThreshold={0.5}
         contentContainerStyle={pages.length === 0 ? styles.empty : undefined}
+        ListFooterComponent={
+          loadingMore ? (
+            <ActivityIndicator style={{ paddingVertical: 16 }} />
+          ) : null
+        }
         ListEmptyComponent={
           loading ? (
             <PageListSkeleton />
@@ -73,6 +108,22 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#fff",
+  },
+  breadcrumbBar: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: "#F9FAFB",
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "#E5E7EB",
+  },
+  breadcrumbText: {
+    fontSize: 13,
+    color: "#6B7280",
+  },
+  breadcrumbSep: {
+    color: "#D1D5DB",
   },
   errorBanner: {
     backgroundColor: "#FEF2F2",

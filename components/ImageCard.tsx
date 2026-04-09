@@ -1,15 +1,17 @@
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 
+import { resolveMediaUrl } from "../lib/api";
 import type { ImageItem } from "../lib/types";
 
 interface Props {
   image: ImageItem;
+  baseUrl: string;
   onPress: () => void;
   size: number;
 }
 
-export function ImageCard({ image, onPress, size }: Props) {
-  const thumbnailUrl = image.renditions?.thumbnail || image.file_url;
+export function ImageCard({ image, baseUrl, onPress, size }: Props) {
+  const thumbnailUrl = resolveMediaUrl(baseUrl, image.renditions?.thumbnail || image.file_url);
 
   return (
     <Pressable
@@ -37,7 +39,6 @@ export function ImageCard({ image, onPress, size }: Props) {
 
 const styles = StyleSheet.create({
   container: {
-    margin: 1,
   },
   pressed: {
     opacity: 0.7,

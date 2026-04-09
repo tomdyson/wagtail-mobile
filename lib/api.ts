@@ -28,6 +28,18 @@ function ensureTrailingSlash(path: string): string {
   return path.endsWith("/") ? path : path + "/";
 }
 
+/** Resolve a potentially relative URL (e.g. /media/...) against the API base URL's origin. */
+export function resolveMediaUrl(baseUrl: string, url: string | null | undefined): string | null {
+  if (!url) return null;
+  if (url.startsWith("http://") || url.startsWith("https://")) return url;
+  try {
+    const origin = new URL(baseUrl).origin;
+    return origin + url;
+  } catch {
+    return url;
+  }
+}
+
 async function request<T>(
   baseUrl: string,
   token: string,
@@ -195,4 +207,56 @@ export const images = {
 
   get: (baseUrl: string, token: string, id: number) =>
     request<ImageItem>(baseUrl, token, "GET", `/images/${id}/`),
+
+  update: (baseUrl: string, token: string, id: number, data: { title: string }) =>
+    request<ImageItem>(baseUrl, token, "PATCH", `/images/${id}/`, { body: data }),
+
+  delete: (baseUrl: string, token: string, id: number) =>
+    request<void>(baseUrl, token, "DELETE", `/images/${id}/`),
+
+  upload: async (
+    baseUrl: string,
+    token: string,
+    fileUri: string,
+    fileName: string,
+    mimeType: string,
+    title?: string
+  ): Promise<ImageItem> => {
+    const base = baseUrl.replace(/\/$/, "");
+    const url = base + "/images/";
+
+    const formData = new FormData();
+    formData.append("file", {
+      uri: fileUri,
+      name: fileName,
+      type: mimeType,
+    } as unknown as Blob);
+    if (title) {
+      formData.append("title", title);
+    }
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/json",
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      let body: unknown;
+      try {
+        body = await response.json();
+      } catch {
+        body = await response.text();
+      }
+      if (response.status === 401) {
+        emitAuthFailure();
+      }
+      throw new ApiError(response.status, body);
+    }
+
+    return response.json();
+  },
 };

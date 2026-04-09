@@ -2,6 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Stack, useRouter } from "expo-router";
 import { useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   FlatList,
   Pressable,
@@ -24,12 +25,11 @@ export default function PagesTab() {
 
   const children = usePageChildren(1);
   const searchResults = usePageSearch(
-    isSearching ? { search: search.trim(), limit: 50 } : { limit: 0 }
+    isSearching ? { search: search.trim() } : { limit: 0 }
   );
 
-  const { pages, loading, error, refresh } = isSearching
-    ? { pages: searchResults.pages, loading: searchResults.loading, error: searchResults.error, refresh: searchResults.refresh }
-    : children;
+  const active = isSearching ? searchResults : children;
+  const { pages, loading, error, refresh, loadMore, loadingMore, hasMore } = active;
 
   const handleDisconnect = () => {
     Alert.alert("Disconnect", "Remove this site connection?", [
@@ -103,7 +103,14 @@ export default function PagesTab() {
         )}
         refreshing={loading && pages.length > 0}
         onRefresh={refresh}
+        onEndReached={hasMore ? loadMore : undefined}
+        onEndReachedThreshold={0.5}
         contentContainerStyle={pages.length === 0 ? styles.empty : undefined}
+        ListFooterComponent={
+          loadingMore ? (
+            <ActivityIndicator style={{ paddingVertical: 16 }} />
+          ) : null
+        }
         ListEmptyComponent={
           loading ? (
             <PageListSkeleton />
