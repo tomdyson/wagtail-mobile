@@ -26,7 +26,7 @@
 - [x] Rich text fields displayed and edited as Markdown (via API `?rich_text_format=markdown`)
 - [x] Date/datetime fields with native iOS picker (detected from schema)
 - [x] Simple text/number fields editable
-- [x] StreamField/complex fields shown read-only
+- [x] StreamField block editing (paragraph as markdown, heading with text/size, StructBlock recursive, read-only fallback)
 - [x] Save button in header (appears when fields are dirty)
 - [x] Publish / unpublish actions with haptic feedback
 - [x] Permission-aware (buttons based on `meta.user_permissions`)
@@ -40,7 +40,8 @@
 - [x] Title, slug, and simple fields from schema
 - [x] Date fields with native picker
 - [x] "Publish immediately" toggle
-- [x] Schema-aware (skips StreamField/RichText/array fields)
+- [x] StreamField support with "add block" buttons for editable block types
+- [x] Schema-aware (skips RichText/array fields)
 
 ### Image gallery
 - [x] Thumbnail grid (3 columns, padded to match page list)
@@ -66,7 +67,7 @@
 ## Next
 
 ### Medium priority
-- [ ] StreamField body editing (at least paragraph blocks as markdown)
+- [ ] StreamField block add/delete/reorder on edit screen
 - [ ] Page copy and move
 - [ ] Revision history viewer
 - [ ] Snippets CRUD
