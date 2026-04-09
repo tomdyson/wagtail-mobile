@@ -154,7 +154,7 @@ function ListBlockEditor({
   editable: boolean;
 }) {
   const itemSchema = schema.items!;
-  const itemLabel = itemSchema.type.replace(/_/g, " ");
+  const itemLabel = itemSchema.type.endsWith("_chooser") ? "item" : itemSchema.type.replace(/_/g, " ");
 
   return (
     <View style={listStyles.container}>
