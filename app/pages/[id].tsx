@@ -359,6 +359,7 @@ export default function PageDetailScreen() {
       <Stack.Screen
         options={{
           title: page.title,
+          gestureEnabled: !isDirty,
           headerRight: () =>
             isDirty ? (
               <Pressable onPress={handleSave} disabled={saving}>
