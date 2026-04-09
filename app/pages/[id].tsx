@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
+import { usePreventRemove } from "@react-navigation/core";
 import * as Haptics from "expo-haptics";
-import { Stack, useLocalSearchParams, useNavigation, useRouter } from "expo-router";
+import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
   Alert,
@@ -83,7 +84,6 @@ export default function PageDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { baseUrl, token } = useAuth();
   const router = useRouter();
-  const navigation = useNavigation();
   const { page, loading, error, refresh } = usePageDetail(Number(id), "markdown");
 
   const [title, setTitle] = useState("");
@@ -118,21 +118,16 @@ export default function PageDetailScreen() {
       slug !== page.slug ||
       Object.keys(editedFields).length > 0);
 
-  useEffect(() => {
-    const unsubscribe = navigation.addListener("beforeRemove", (e) => {
-      if (!isDirty) return;
-      e.preventDefault();
-      Alert.alert("Unsaved changes", "Discard your changes?", [
-        { text: "Keep editing", style: "cancel" },
-        {
-          text: "Discard",
-          style: "destructive",
-          onPress: () => navigation.dispatch(e.data.action),
-        },
-      ]);
-    });
-    return unsubscribe;
-  }, [navigation, isDirty]);
+  usePreventRemove(isDirty, ({ data }) => {
+    Alert.alert("Unsaved changes", "Discard your changes?", [
+      { text: "Keep editing", style: "cancel" },
+      {
+        text: "Discard",
+        style: "destructive",
+        onPress: () => data.action.target && router.back(),
+      },
+    ]);
+  });
 
   const handleSave = useCallback(async () => {
     if (!page) return;
@@ -359,7 +354,7 @@ export default function PageDetailScreen() {
       <Stack.Screen
         options={{
           title: page.title,
-          gestureEnabled: !isDirty,
+          headerBackButtonMenuEnabled: false,
           headerRight: () =>
             isDirty ? (
               <Pressable onPress={handleSave} disabled={saving}>
