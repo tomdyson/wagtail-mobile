@@ -38,7 +38,7 @@ export default function PagesTab() {
                 router.push("/pages/create?parentId=1&parentType=wagtailcore.Page")
               }
               hitSlop={8}
-              style={{ marginRight: 8 }}
+              style={{ marginRight: 16 }}
             >
               <Ionicons name="add-circle-outline" size={24} color="#3B82F6" />
             </Pressable>

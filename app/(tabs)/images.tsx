@@ -69,7 +69,7 @@ export default function ImagesTab() {
               onPress={handleUpload}
               disabled={uploading}
               hitSlop={8}
-              style={{ marginRight: 8 }}
+              style={{ marginRight: 16 }}
             >
               <Ionicons
                 name={uploading ? "hourglass-outline" : "cloud-upload-outline"}
