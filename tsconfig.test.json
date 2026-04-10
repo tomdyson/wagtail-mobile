@@ -1,0 +1,14 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "target": "ES2022",
+    "outDir": "/tmp/wagtail-mobile-test-dist",
+    "rootDir": ".",
+    "noEmit": false
+  },
+  "include": [
+    "lib/**/*.ts"
+  ]
+}

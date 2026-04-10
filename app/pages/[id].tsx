@@ -1,8 +1,8 @@
-import { Ionicons } from "@expo/vector-icons";
 import { usePreventRemove } from "@react-navigation/core";
 import * as Haptics from "expo-haptics";
+import * as WebBrowser from "expo-web-browser";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Alert,
   KeyboardAvoidingView,
@@ -10,75 +10,43 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Switch,
   Text,
-  TextInput,
   View,
 } from "react-native";
-import * as WebBrowser from "expo-web-browser";
 
-import { DateField } from "../../components/DateField";
+import { FieldRenderer } from "../../components/forms/FieldRenderer";
+import { FieldSectionRenderer } from "../../components/forms/FieldSectionRenderer";
+import { formStyles } from "../../components/forms/FormStyles";
 import { PageListSkeleton } from "../../components/Skeleton";
 import { StatusBadge } from "../../components/StatusBadge";
-import { ImageChooser } from "../../components/streamfield/ImageChooser";
-import { StreamFieldEditor } from "../../components/streamfield/StreamFieldEditor";
 import { ApiError, pages, schema, type SchemaDetail } from "../../lib/api";
+import {
+  buildEditFormModel,
+  getSectionedFields,
+  getTextValue,
+  hasDirtyFields,
+  serializeEditPayload,
+  setFormErrors,
+  updateFieldValue,
+  validateForm,
+} from "../../lib/forms/model";
+import type { FieldSection, FieldValue, FormState } from "../../lib/forms/types";
 import { useAuth } from "../../lib/hooks/useAuth";
 import { usePageDetail } from "../../lib/hooks/usePages";
-import { markdownPayload } from "../../lib/richtext";
-import { prepareBlocksForSave } from "../../lib/streamfield";
-import type { PageDetail, StreamFieldBlock } from "../../lib/types";
 
-const SKIP_FIELDS = new Set([
-  "id",
-  "title",
-  "slug",
-  "meta",
-  "hints",
-  "alias_of",
-]);
-
-function isSimpleField(value: unknown): boolean {
-  return (
-    typeof value === "string" ||
-    typeof value === "number" ||
-    typeof value === "boolean" ||
-    value === null
-  );
-}
-
-function isComplexField(value: unknown): boolean {
-  return Array.isArray(value) || (typeof value === "object" && value !== null);
-}
-
-type DateFieldMode = "date" | "datetime";
-
-function buildDateFieldMap(
-  schemaDetail: SchemaDetail | null
-): Map<string, DateFieldMode> {
-  const map = new Map<string, DateFieldMode>();
-  if (!schemaDetail) return map;
-  const props = schemaDetail.create_schema.properties;
-  for (const [name, def] of Object.entries(props)) {
-    const d = def as Record<string, unknown>;
-    let format: string | undefined;
-    if (d.format) {
-      format = String(d.format);
-    } else if (d.anyOf && Array.isArray(d.anyOf)) {
-      for (const opt of d.anyOf as Array<Record<string, unknown>>) {
-        if (opt.format) {
-          format = String(opt.format);
-          break;
-        }
-      }
-    }
-    if (format === "date-time") {
-      map.set(name, "datetime");
-    } else if (format === "date") {
-      map.set(name, "date");
-    }
+function sectionTitle(section: FieldSection): string | undefined {
+  switch (section) {
+    case "fields":
+      return "Fields";
+    case "richText":
+      return "Rich Text";
+    case "media":
+      return "Media";
+    case "content":
+      return "Content";
+    default:
+      return undefined;
   }
-  return map;
 }
 
 export default function PageDetailScreen() {
@@ -87,37 +55,35 @@ export default function PageDetailScreen() {
   const router = useRouter();
   const { page, loading, error, refresh } = usePageDetail(Number(id), "markdown");
 
-  const [title, setTitle] = useState("");
-  const [slug, setSlug] = useState("");
-  const [editedFields, setEditedFields] = useState<Record<string, unknown>>({});
-  const [saving, setSaving] = useState(false);
   const [schemaDetail, setSchemaDetail] = useState<SchemaDetail | null>(null);
-
-  // Fetch schema when we know the page type
-  useEffect(() => {
-    if (page?.meta.type) {
-      schema
-        .get(baseUrl, token, page.meta.type)
-        .then(setSchemaDetail)
-        .catch(() => {}); // non-critical, fields just won't get date pickers
-    }
-  }, [page?.meta.type, baseUrl, token]);
+  const [schemaResolved, setSchemaResolved] = useState(false);
+  const [formState, setFormState] = useState<FormState | null>(null);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (page) {
-      setTitle(page.title);
-      setSlug(page.slug);
-      setEditedFields({});
+    if (!page?.meta.type) return;
+
+    setSchemaResolved(false);
+    schema
+      .get(baseUrl, token, page.meta.type)
+      .then((detail) => setSchemaDetail(detail))
+      .catch(() => setSchemaDetail(null))
+      .finally(() => setSchemaResolved(true));
+  }, [baseUrl, page?.meta.type, token]);
+
+  useEffect(() => {
+    if (page && schemaResolved) {
+      setFormState(buildEditFormModel(page, schemaDetail));
     }
-  }, [page]);
+  }, [page, schemaDetail, schemaResolved]);
 
-  const dateFields = buildDateFieldMap(schemaDetail);
+  const handleFieldChange = useCallback((fieldName: string, value: FieldValue) => {
+    setFormState((current) =>
+      current ? updateFieldValue(current, fieldName, value) : current
+    );
+  }, []);
 
-  const isDirty =
-    page !== null &&
-    (title !== page.title ||
-      slug !== page.slug ||
-      Object.keys(editedFields).length > 0);
+  const isDirty = formState ? hasDirtyFields(formState) : false;
 
   usePreventRemove(isDirty, () => {
     Alert.alert("Unsaved changes", "Discard your changes?", [
@@ -127,9 +93,7 @@ export default function PageDetailScreen() {
         style: "destructive",
         onPress: () => {
           if (page) {
-            setTitle(page.title);
-            setSlug(page.slug);
-            setEditedFields({});
+            setFormState(buildEditFormModel(page, schemaDetail));
           }
           setTimeout(() => router.back(), 0);
         },
@@ -138,43 +102,29 @@ export default function PageDetailScreen() {
   });
 
   const handleSave = useCallback(async () => {
-    if (!page) return;
+    if (!page || !formState) return;
+
+    const errors = validateForm(formState, "edit");
+    if (Object.keys(errors).length > 0) {
+      setFormState((current) => (current ? setFormErrors(current, errors) : current));
+      return;
+    }
+
+    const payload = serializeEditPayload(formState);
+    if (Object.keys(payload).length === 0) return;
+
     setSaving(true);
     try {
-      const data: Record<string, unknown> = {};
-      if (title !== page.title) data.title = title;
-      if (slug !== page.slug) data.slug = slug;
-      for (const [key, value] of Object.entries(editedFields)) {
-        if (
-          streamFieldNames.has(key) &&
-          Array.isArray(value) &&
-          schemaDetail?.streamfield_blocks?.[key]
-        ) {
-          data[key] = prepareBlocksForSave(
-            value as StreamFieldBlock[],
-            schemaDetail.streamfield_blocks[key]
-          );
-        } else if (richTextFieldNames.has(key) && typeof value === "string") {
-          data[key] = markdownPayload(value);
-        } else if (inlinePanelSchemas.has(key) && Array.isArray(value)) {
-          // Strip sort_order — the API manages ordering from array position
-          data[key] = (value as Record<string, unknown>[]).map(
-            ({ sort_order, ...rest }) => rest
-          );
-        } else {
-          data[key] = value;
-        }
-      }
-      await pages.update(baseUrl, token, page.id, data);
+      await pages.update(baseUrl, token, page.id, payload);
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       refresh();
-    } catch (e) {
-      const msg = e instanceof ApiError ? e.message : String(e);
-      Alert.alert("Save failed", msg);
+    } catch (saveError) {
+      const message = saveError instanceof ApiError ? saveError.message : String(saveError);
+      Alert.alert("Save failed", message);
     } finally {
       setSaving(false);
     }
-  }, [page, title, slug, editedFields, baseUrl, token, refresh, schemaDetail]);
+  }, [baseUrl, formState, page, refresh, token]);
 
   const handlePublish = useCallback(async () => {
     if (!page) return;
@@ -182,11 +132,12 @@ export default function PageDetailScreen() {
       await pages.publish(baseUrl, token, page.id);
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       refresh();
-    } catch (e) {
-      const msg = e instanceof ApiError ? e.message : String(e);
-      Alert.alert("Publish failed", msg);
+    } catch (publishError) {
+      const message =
+        publishError instanceof ApiError ? publishError.message : String(publishError);
+      Alert.alert("Publish failed", message);
     }
-  }, [page, baseUrl, token, refresh]);
+  }, [baseUrl, page, refresh, token]);
 
   const handleUnpublish = useCallback(async () => {
     if (!page) return;
@@ -198,18 +149,19 @@ export default function PageDetailScreen() {
         onPress: async () => {
           try {
             await pages.unpublish(baseUrl, token, page.id);
-            await Haptics.notificationAsync(
-              Haptics.NotificationFeedbackType.Success
-            );
+            await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             refresh();
-          } catch (e) {
-            const msg = e instanceof ApiError ? e.message : String(e);
-            Alert.alert("Unpublish failed", msg);
+          } catch (unpublishError) {
+            const message =
+              unpublishError instanceof ApiError
+                ? unpublishError.message
+                : String(unpublishError);
+            Alert.alert("Unpublish failed", message);
           }
         },
       },
     ]);
-  }, [page, baseUrl, token, refresh]);
+  }, [baseUrl, page, refresh, token]);
 
   const handleDelete = useCallback(async () => {
     if (!page) return;
@@ -224,19 +176,23 @@ export default function PageDetailScreen() {
           onPress: async () => {
             try {
               await pages.delete(baseUrl, token, page.id);
-              await Haptics.notificationAsync(
-                Haptics.NotificationFeedbackType.Success
-              );
+              await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
               router.back();
-            } catch (e) {
-              const msg = e instanceof ApiError ? e.message : String(e);
-              Alert.alert("Delete failed", msg);
+            } catch (deleteError) {
+              const message =
+                deleteError instanceof ApiError ? deleteError.message : String(deleteError);
+              Alert.alert("Delete failed", message);
             }
           },
         },
       ]
     );
-  }, [page, baseUrl, token, router]);
+  }, [baseUrl, page, router, token]);
+
+  const sections = useMemo(
+    () => (formState ? getSectionedFields(formState.fields) : []),
+    [formState]
+  );
 
   if (loading && !page) {
     return (
@@ -261,7 +217,16 @@ export default function PageDetailScreen() {
     );
   }
 
-  if (!page) return null;
+  if (!page || !formState || !schemaResolved) {
+    return (
+      <View style={styles.container}>
+        <Stack.Screen options={{ title: "Page" }} />
+        <View style={{ padding: 16 }}>
+          <PageListSkeleton count={4} />
+        </View>
+      </View>
+    );
+  }
 
   const permissions = page.meta.user_permissions || [];
   const canPublish = permissions.includes("publish");
@@ -270,105 +235,26 @@ export default function PageDetailScreen() {
   const showPublish =
     canPublish && (!page.meta.live || page.meta.has_unpublished_changes);
   const showUnpublish = canPublish && page.meta.live;
-
-  const richTextFieldNames = new Set(schemaDetail?.richtext_fields || []);
-  const streamFieldNames = new Set(
-    Object.keys(schemaDetail?.streamfield_blocks || {})
-  );
-
-  // Extract widget hints and inline panel schemas from schema properties
-  const widgetMap = new Map<string, string>();
-  const inlinePanelSchemas = new Map<string, Record<string, { type: string; required: boolean }>>();
-  if (schemaDetail?.create_schema?.properties) {
-    const defs = (schemaDetail.create_schema as Record<string, unknown>)["$defs"] as
-      Record<string, Record<string, unknown>> | undefined;
-    for (const [name, def] of Object.entries(schemaDetail.create_schema.properties)) {
-      const d = def as Record<string, unknown>;
-      if (typeof d.widget === "string") {
-        widgetMap.set(name, d.widget);
-      }
-      // Detect inline panel fields: type "array" with items.$ref to $defs
-      if (d.type === "array" && d.items && defs) {
-        const items = d.items as Record<string, unknown>;
-        const ref = items["$ref"] as string | undefined;
-        if (ref?.startsWith("#/$defs/")) {
-          const defName = ref.replace("#/$defs/", "");
-          const defSchema = defs[defName];
-          if (defSchema?.properties) {
-            const props = defSchema.properties as Record<string, Record<string, unknown>>;
-            const reqSet = new Set((defSchema.required as string[]) || []);
-            const fieldDefs: Record<string, { type: string; required: boolean }> = {};
-            for (const [pName, pDef] of Object.entries(props)) {
-              if (pName === "id") continue; // skip internal id
-              let pType = (pDef.type as string) || "";
-              if (!pType && pDef.anyOf) {
-                const types = (pDef.anyOf as Array<Record<string, unknown>>)
-                  .filter((t) => t.type !== "null")
-                  .map((t) => t.type as string);
-                pType = types[0] || "string";
-              }
-              fieldDefs[pName] = { type: pType || "string", required: reqSet.has(pName) };
-            }
-            if (Object.keys(fieldDefs).length > 0) {
-              inlinePanelSchemas.set(name, fieldDefs);
-            }
-          }
-        }
-      }
-    }
-  }
-
-  const extraFields = Object.entries(page).filter(
-    ([key]) => !SKIP_FIELDS.has(key)
-  );
-  const richTextFields = extraFields.filter(
-    ([key, value]) => richTextFieldNames.has(key) && typeof value === "string"
-  );
-  const imageChooserFields = extraFields.filter(
-    ([key]) => widgetMap.get(key) === "image_chooser"
-  );
-  const imageChooserNames = new Set(imageChooserFields.map(([key]) => key));
-  const simpleFields = extraFields.filter(
-    ([key, value]) =>
-      isSimpleField(value) &&
-      !richTextFieldNames.has(key) &&
-      !imageChooserNames.has(key)
-  );
-  const streamFields = extraFields.filter(
-    ([key, value]) => streamFieldNames.has(key) && Array.isArray(value)
-  );
-  const inlinePanelFields = extraFields.filter(
-    ([key]) => inlinePanelSchemas.has(key)
-  );
-  const inlinePanelNames = new Set(inlinePanelFields.map(([key]) => key));
-  const complexFields = extraFields.filter(
-    ([key, value]) =>
-      isComplexField(value) &&
-      !streamFieldNames.has(key) &&
-      !inlinePanelNames.has(key)
-  );
-
   const shortType = page.meta.type
     .split(".")
     .pop()
     ?.replace(/([A-Z])/g, " $1")
     .trim();
-
-  const getFieldValue = (key: string): unknown =>
-    editedFields[key] !== undefined ? editedFields[key] : page[key];
+  const identityFields =
+    sections.find((section) => section.section === "identity")?.fields || [];
+  const otherSections = sections.filter((section) => section.section !== "identity");
+  const pageTitle = getTextValue(formState.values.title) || page.title;
 
   return (
     <View style={styles.container}>
       <Stack.Screen
         options={{
-          title: page.title,
+          title: pageTitle,
           headerBackButtonMenuEnabled: false,
           headerRight: () =>
             isDirty ? (
               <Pressable onPress={handleSave} disabled={saving}>
-                <Text style={styles.saveButton}>
-                  {saving ? "Saving..." : "Save"}
-                </Text>
+                <Text style={styles.saveButton}>{saving ? "Saving..." : "Save"}</Text>
               </Pressable>
             ) : null,
         }}
@@ -383,14 +269,14 @@ export default function PageDetailScreen() {
           contentContainerStyle={styles.scroll}
           keyboardShouldPersistTaps="handled"
         >
-          <View style={styles.section}>
+          <View style={formStyles.section}>
             <View style={styles.statusRow}>
               <Text style={styles.typeLabel}>{shortType}</Text>
               {page.meta.live && page.meta.url_path ? (
                 <Pressable
                   onPress={() => {
                     const origin = new URL(baseUrl).origin;
-                    WebBrowser.openBrowserAsync(origin + page.meta.url_path);
+                    void WebBrowser.openBrowserAsync(origin + page.meta.url_path);
                   }}
                 >
                   <StatusBadge
@@ -406,265 +292,39 @@ export default function PageDetailScreen() {
               )}
             </View>
 
-            <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>Title</Text>
-              <TextInput
-                style={styles.fieldInput}
-                value={title}
-                onChangeText={setTitle}
-                editable={canEdit}
+            {identityFields.map((field) => (
+              <FieldRenderer
+                key={field.name}
+                field={field}
+                value={formState.values[field.name]}
+                error={formState.errors[field.name]}
+                onChange={(value) => handleFieldChange(field.name, value)}
+                editable={canEdit && field.editable}
               />
-            </View>
-
-            <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>Slug</Text>
-              <TextInput
-                style={styles.fieldInput}
-                value={slug}
-                onChangeText={setSlug}
-                autoCapitalize="none"
-                autoCorrect={false}
-                editable={canEdit}
-              />
-            </View>
+            ))}
 
             {page.meta.url_path && (
-              <View style={styles.fieldGroup}>
-                <Text style={styles.fieldLabel}>URL path</Text>
-                <Text style={styles.readOnlyValue}>{page.meta.url_path}</Text>
+              <View style={formStyles.fieldGroup}>
+                <Text style={formStyles.fieldLabel}>URL path</Text>
+                <Text style={formStyles.readOnlyValue}>{page.meta.url_path}</Text>
               </View>
             )}
           </View>
 
-          {simpleFields.length > 0 && (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Fields</Text>
-              {simpleFields.map(([key, value]) => {
-                const dateMode = dateFields.get(key);
-                if (dateMode) {
-                  const currentVal = getFieldValue(key);
-                  return (
-                    <DateField
-                      key={key}
-                      label={key.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase())}
-                      value={currentVal != null ? String(currentVal) : null}
-                      onChange={(v) =>
-                        setEditedFields((prev) => ({ ...prev, [key]: v }))
-                      }
-                      mode={dateMode}
-                      editable={canEdit}
-                    />
-                  );
-                }
-                if (typeof (getFieldValue(key) ?? value) === "boolean") {
-                  return (
-                    <View key={key} style={styles.switchRow}>
-                      <Text style={styles.switchLabel}>
-                        {key.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase())}
-                      </Text>
-                      <Switch
-                        value={Boolean(getFieldValue(key) ?? value)}
-                        onValueChange={(v) =>
-                          setEditedFields((prev) => ({ ...prev, [key]: v }))
-                        }
-                        disabled={!canEdit}
-                      />
-                    </View>
-                  );
-                }
-                return (
-                  <View key={key} style={styles.fieldGroup}>
-                    <Text style={styles.fieldLabel}>
-                      {key.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase())}
-                    </Text>
-                    <TextInput
-                      style={styles.fieldInput}
-                      value={
-                        editedFields[key] !== undefined
-                          ? String(editedFields[key])
-                          : String(value ?? "")
-                      }
-                      onChangeText={(text) =>
-                        setEditedFields((prev) => ({ ...prev, [key]: text }))
-                      }
-                      editable={canEdit}
-                    />
-                  </View>
-                );
-              })}
-            </View>
-          )}
-
-          {imageChooserFields.length > 0 && (
-            <View style={styles.section}>
-              {imageChooserFields.map(([key]) => {
-                const currentVal = getFieldValue(key);
-                return (
-                  <View key={key} style={styles.fieldGroup}>
-                    <Text style={styles.fieldLabel}>
-                      {key.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase())}
-                    </Text>
-                    <ImageChooser
-                      value={currentVal as number | null}
-                      onChange={(id) =>
-                        setEditedFields((prev) => ({ ...prev, [key]: id }))
-                      }
-                      editable={canEdit}
-                    />
-                  </View>
-                );
-              })}
-            </View>
-          )}
-
-          {richTextFields.length > 0 && (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Rich Text</Text>
-              {richTextFields.map(([key, value]) => {
-                const mdValue =
-                  editedFields[key] !== undefined
-                    ? String(editedFields[key])
-                    : String(value ?? "");
-                return (
-                  <View key={key} style={styles.fieldGroup}>
-                    <Text style={styles.fieldLabel}>
-                      {key.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase())}
-                    </Text>
-                    <TextInput
-                      style={[styles.fieldInput, styles.richTextInput]}
-                      value={mdValue}
-                      onChangeText={(text) =>
-                        setEditedFields((prev) => ({ ...prev, [key]: text }))
-                      }
-                      editable={canEdit}
-                      multiline
-                      textAlignVertical="top"
-                    />
-                  </View>
-                );
-              })}
-            </View>
-          )}
-
-          {streamFields.map(([key]) => (
-            <View key={key} style={styles.section}>
-              <Text style={styles.sectionTitle}>
-                {key.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase())}
-              </Text>
-              <StreamFieldEditor
-                blocks={
-                  (getFieldValue(key) as StreamFieldBlock[]) || []
-                }
-                blockTypes={
-                  schemaDetail?.streamfield_blocks?.[key] || []
-                }
-                onChange={(newBlocks) =>
-                  setEditedFields((prev) => ({ ...prev, [key]: newBlocks }))
-                }
-                editable={canEdit}
-              />
-            </View>
+          {otherSections.map(({ section, fields }) => (
+            <FieldSectionRenderer
+              key={section}
+              title={sectionTitle(section)}
+              fields={fields}
+              values={formState.values}
+              errors={formState.errors}
+              onChange={handleFieldChange}
+              editable={canEdit}
+            />
           ))}
 
-          {inlinePanelFields.map(([key]) => {
-            const fieldSchema = inlinePanelSchemas.get(key)!;
-            const items = (getFieldValue(key) as Record<string, unknown>[]) || [];
-            const fieldProps = Object.keys(fieldSchema);
-            return (
-              <View key={key} style={styles.section}>
-                <Text style={styles.sectionTitle}>
-                  {key.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase())}
-                </Text>
-                {items.map((item, index) => (
-                  <View key={item.id != null ? String(item.id) : `new-${index}`} style={styles.inlineItem}>
-                    <View style={styles.inlineItemFields}>
-                      {fieldProps.map((prop) => (
-                        <View key={prop} style={styles.inlineField}>
-                          <Text style={styles.inlineFieldLabel}>
-                            {prop.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase())}
-                          </Text>
-                          <TextInput
-                            style={styles.fieldInput}
-                            value={String(item[prop] ?? "")}
-                            onChangeText={(text) => {
-                              const updated = items.map((it, i) =>
-                                i === index ? { ...it, [prop]: text } : it
-                              );
-                              setEditedFields((prev) => ({ ...prev, [key]: updated }));
-                            }}
-                            editable={canEdit}
-                            placeholder={fieldSchema[prop].required ? "Required" : "Optional"}
-                            placeholderTextColor="#D1D5DB"
-                          />
-                        </View>
-                      ))}
-                    </View>
-                    {canEdit && (
-                      <Pressable
-                        onPress={() => {
-                          Alert.alert("Remove", `Remove this ${key.replace(/_/g, " ").slice(0, -1)}?`, [
-                            { text: "Cancel", style: "cancel" },
-                            {
-                              text: "Remove",
-                              style: "destructive",
-                              onPress: () => {
-                                const updated = items.filter((_, i) => i !== index);
-                                setEditedFields((prev) => ({ ...prev, [key]: updated }));
-                              },
-                            },
-                          ]);
-                        }}
-                        hitSlop={8}
-                        style={styles.inlineDeleteButton}
-                      >
-                        <Ionicons name="trash-outline" size={16} color="#EF4444" />
-                      </Pressable>
-                    )}
-                  </View>
-                ))}
-                {canEdit && (
-                  <Pressable
-                    style={({ pressed }) => [
-                      styles.inlineAddButton,
-                      pressed && styles.inlineAddButtonPressed,
-                    ]}
-                    onPress={() => {
-                      const newItem: Record<string, unknown> = { id: null };
-                      for (const [prop, def] of Object.entries(fieldSchema)) {
-                        newItem[prop] = def.type === "integer" ? null : "";
-                      }
-                      const updated = [...items, newItem];
-                      setEditedFields((prev) => ({ ...prev, [key]: updated }));
-                    }}
-                  >
-                    <Text style={styles.inlineAddButtonText}>
-                      + Add {key.replace(/_/g, " ").slice(0, -1)}
-                    </Text>
-                  </Pressable>
-                )}
-              </View>
-            );
-          })}
-
-          {complexFields.length > 0 && (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Content</Text>
-              {complexFields.map(([key]) => (
-                <View key={key} style={styles.fieldGroup}>
-                  <Text style={styles.fieldLabel}>
-                    {key.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase())}{" "}
-                    <Text style={styles.viewOnly}>(view only)</Text>
-                  </Text>
-                  <Text style={styles.readOnlyValue} numberOfLines={4}>
-                    {JSON.stringify(page[key], null, 2)}
-                  </Text>
-                </View>
-              ))}
-            </View>
-          )}
-
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Info</Text>
+          <View style={formStyles.section}>
+            <Text style={formStyles.sectionTitle}>Info</Text>
             {page.meta.first_published_at && (
               <View style={styles.infoRow}>
                 <Text style={styles.infoLabel}>First published</Text>
@@ -747,19 +407,6 @@ const styles = StyleSheet.create({
     gap: 20,
     paddingBottom: 40,
   },
-  section: {
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    padding: 16,
-    gap: 12,
-  },
-  sectionTitle: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: "#6B7280",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-  },
   statusRow: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -769,50 +416,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#6B7280",
     fontWeight: "500",
-  },
-  fieldGroup: {
-    gap: 4,
-  },
-  fieldLabel: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: "#374151",
-  },
-  fieldInput: {
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    fontSize: 16,
-    color: "#111827",
-    backgroundColor: "#FAFAFA",
-  },
-  richTextInput: {
-    minHeight: 150,
-    fontFamily: "monospace",
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  readOnlyValue: {
-    fontSize: 14,
-    color: "#6B7280",
-    paddingVertical: 4,
-    fontFamily: "monospace",
-  },
-  switchRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  switchLabel: {
-    fontSize: 16,
-    color: "#111827",
-  },
-  viewOnly: {
-    fontSize: 11,
-    color: "#9CA3AF",
-    fontWeight: "400",
   },
   infoRow: {
     flexDirection: "row",
@@ -879,48 +482,5 @@ const styles = StyleSheet.create({
     color: "#3B82F6",
     fontSize: 16,
     fontWeight: "600",
-  },
-  inlineItem: {
-    flexDirection: "row",
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-    borderRadius: 8,
-    padding: 10,
-    backgroundColor: "#FAFAFA",
-    gap: 8,
-  },
-  inlineItemFields: {
-    flex: 1,
-    gap: 6,
-  },
-  inlineField: {
-    gap: 2,
-  },
-  inlineFieldLabel: {
-    fontSize: 11,
-    fontWeight: "600",
-    color: "#6B7280",
-    textTransform: "uppercase",
-    letterSpacing: 0.3,
-  },
-  inlineDeleteButton: {
-    justifyContent: "center",
-    padding: 4,
-  },
-  inlineAddButton: {
-    paddingVertical: 10,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#3B82F6",
-    borderStyle: "dashed",
-    alignItems: "center",
-  },
-  inlineAddButtonPressed: {
-    backgroundColor: "#EFF6FF",
-  },
-  inlineAddButtonText: {
-    fontSize: 14,
-    color: "#3B82F6",
-    fontWeight: "500",
   },
 });

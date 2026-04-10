@@ -12,7 +12,7 @@ Connects to any Wagtail site running [wagtail-write-api](https://github.com/tomd
 - **Rich text as Markdown** — rich text fields displayed and edited as Markdown
 - **Publish / unpublish / delete** — manage page workflow with haptic feedback and confirmation dialogs
 - **Image gallery** — browse images with thumbnail grid and search
-- **Username/password login** — automatic re-login on token expiry
+- **Username/password login** — secure token storage with automatic logout on expired/revoked tokens
 
 ## Screenshots
 
@@ -101,8 +101,45 @@ wagtail-mobile/
 ```bash
 npm install              # install dependencies
 npx expo start           # start dev server
-npx tsc --noEmit         # type check
+npm run typecheck        # type check
+npm test                 # run shared form/date unit tests
 ```
+
+## Tests
+
+Current automated tests cover the shared typed form layer and date handling logic.
+
+Run all tests:
+
+```bash
+npm test
+```
+
+What `npm test` does:
+
+- compiles the TypeScript test files with `tsconfig.test.json`
+- writes temporary compiled output to `/tmp/wagtail-mobile-test-dist`
+- runs the resulting Node-based tests with the built-in `node:test` runner
+
+Run type checking separately:
+
+```bash
+npm run typecheck
+```
+
+Current test scope:
+
+- form model generation for create/edit
+- typed payload serialization
+- required-field validation
+- inline panel payload cleanup
+- StreamField markdown payload shaping
+- date-only round-trip safety
+
+Not yet covered:
+
+- React Native UI rendering/integration tests
+- end-to-end Expo/device tests
 
 ## API requirements
 

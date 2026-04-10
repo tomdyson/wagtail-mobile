@@ -23,9 +23,10 @@
 
 ### Page detail/edit
 - [x] View all page fields with editable title and slug
+- [x] Shared schema-driven typed form layer for create/edit (field discovery, dirty tracking, validation, payload serialization)
 - [x] Rich text fields displayed and edited as Markdown (via API `?rich_text_format=markdown`)
-- [x] Date/datetime fields with native iOS picker (detected from schema)
-- [x] Simple text/number fields editable
+- [x] Date/datetime fields with native picker and date-only round-trip safety (no UTC day drift)
+- [x] Simple fields editable with typed handling (text, numbers, booleans, dates, choosers)
 - [x] StreamField inline editing for text-based blocks (RichTextBlock as markdown, CharBlock, ChoiceBlock, StructBlocks composed of these). Snippet choosers shown read-only.
 - [x] StreamField ListBlock editing (e.g. related_pages, gallery) with add/remove for lists of choosers and structs
 - [x] StreamField image chooser with modal search grid and thumbnail preview
@@ -36,7 +37,7 @@
 - [x] Save button in header (appears when fields are dirty)
 - [x] Publish / unpublish actions with haptic feedback
 - [x] Permission-aware (buttons based on `meta.user_permissions`)
-- [x] Boolean fields as toggle switches (detected from value type)
+- [x] Boolean fields as toggle switches (shared renderer path for create/edit)
 - [x] Unsaved changes warning (usePreventRemove with discard/keep editing dialog)
 - [x] Keyboard-avoiding scroll view
 - [x] Delete page with confirmation dialog (permission-aware)
@@ -46,8 +47,8 @@
 - [x] "+" button in page tree and children screens
 - [x] Type picker filtered by parent's `allowed_subpage_types`
 - [x] Auto-skip picker when only one type is valid
-- [x] Title, slug, and simple fields from schema
-- [x] Date fields with native picker
+- [x] Title, slug, and simple fields from shared typed schema model
+- [x] Date fields with native picker and canonical `YYYY-MM-DD` handling
 - [x] "Publish immediately" toggle
 - [x] StreamField support with add/delete/reorder for all editable block types (including ListBlocks)
 - [x] Image FK fields with image chooser modal (e.g. feed_image)
@@ -75,10 +76,12 @@
 - [x] Expo Router file-based routing with Stack + Tabs
 - [x] TypeScript (compiles clean)
 - [x] Typed API client (plain fetch, no dependencies)
+- [x] Shared form model/types under `lib/forms/` with shared field renderers under `components/forms/`
 - [x] Safe area / status bar handling
 - [x] iOS-native navigation (back buttons, headers)
 - [x] Expired/revoked token handling (401 → auto-redirect to login)
 - [x] Skeleton loading screens (page lists, image grid, page detail)
+- [x] Pure TypeScript tests for shared form modeling, serialization, validation, and date handling
 
 ## Next
 
@@ -103,4 +106,4 @@
 - [ ] Push notifications for publish/workflow events
 - [ ] iPad layout (multi-column)
 - [ ] Biometric unlock (FaceID/TouchID gate before showing content)
-- [ ] Automated tests (unit + integration)
+- [ ] UI/integration tests for React Native screens and form renderers

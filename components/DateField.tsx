@@ -4,6 +4,12 @@ import DateTimePicker, {
 import { useState } from "react";
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 
+import {
+  formatDateDisplay,
+  parseDateValue,
+  serializePickedDate,
+} from "../lib/forms/date";
+
 interface Props {
   label: string;
   value: string | null;
@@ -11,23 +17,6 @@ interface Props {
   mode: "date" | "datetime";
   required?: boolean;
   editable?: boolean;
-}
-
-function formatDisplay(value: string | null, mode: "date" | "datetime"): string {
-  if (!value) return "Not set";
-  const d = new Date(value);
-  if (isNaN(d.getTime())) return value;
-  if (mode === "date") {
-    return d.toLocaleDateString();
-  }
-  return `${d.toLocaleDateString()} ${d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
-}
-
-function toISOString(date: Date, mode: "date" | "datetime"): string {
-  if (mode === "date") {
-    return date.toISOString().split("T")[0];
-  }
-  return date.toISOString();
 }
 
 export function DateField({
@@ -40,14 +29,14 @@ export function DateField({
 }: Props) {
   const [showPicker, setShowPicker] = useState(false);
 
-  const currentDate = value ? new Date(value) : new Date();
+  const currentDate = parseDateValue(value, mode) ?? new Date();
 
   const handleChange = (event: DateTimePickerEvent, date?: Date) => {
     if (Platform.OS === "android") {
       setShowPicker(false);
     }
     if (event.type === "set" && date) {
-      onChange(toISOString(date, mode));
+      onChange(serializePickedDate(date, mode));
     }
     if (event.type === "dismissed") {
       setShowPicker(false);
@@ -75,7 +64,7 @@ export function DateField({
             !value && styles.valuePlaceholder,
           ]}
         >
-          {formatDisplay(value, mode)}
+          {formatDateDisplay(value, mode)}
         </Text>
         {editable && value && !required && (
           <Pressable
