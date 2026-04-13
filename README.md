@@ -47,6 +47,12 @@ npx expo start
 
 Scan the QR code with Expo Go on your iPhone.
 
+For SDK 55+, Expo Go may lag behind the latest SDK release. If Expo Go says the project requires a newer version, use a development build instead:
+
+```bash
+npm run start:dev-client
+```
+
 ### 3. Log in
 
 Enter your Wagtail site's API URL and your username/password:
@@ -101,9 +107,70 @@ wagtail-mobile/
 ```bash
 npm install              # install dependencies
 npx expo start           # start dev server
+npm run start:dev-client # start Metro for a development build
 npm run typecheck        # type check
 npm test                 # run shared form/date unit tests
 ```
+
+## Development builds
+
+This project is configured for Expo development builds with `expo-dev-client` and EAS Build.
+
+Why this is different from Expo Go:
+
+- Expo Go is a generic app from the App Store that can open compatible Expo projects directly.
+- A development build is your own copy of this app, compiled once with the native modules and config this project needs.
+- The initial build/install step is slower than Expo Go, but after the development build is installed you still get the normal local development loop with Fast Refresh.
+
+In practice:
+
+- build and install the development client once
+- start Metro locally with `npm run start:dev-client`
+- save JS/TS/style changes and see them update immediately in the installed app
+- rebuild only when native dependencies, config plugins, or other native project settings change
+
+One-time setup:
+
+```bash
+npm install
+npx eas login
+```
+
+Build and install an iOS development client:
+
+```bash
+npx eas build --profile development --platform ios
+```
+
+Build an iOS simulator client instead:
+
+```bash
+npx eas build --profile development-simulator --platform ios
+```
+
+After installing the development build on your device or simulator, start Metro with:
+
+```bash
+npm run start:dev-client
+```
+
+Then open the installed development build and connect to the local Metro server.
+
+### Faster local option
+
+If you want the fastest edit-refresh loop on your Mac, prefer local native runs over cloud EAS builds while developing:
+
+```bash
+npx expo run:ios
+```
+
+or
+
+```bash
+npx expo run:android
+```
+
+These commands build the native app locally and then let you keep using Fast Refresh through Metro, without waiting for a new cloud build each time.
 
 ## Tests
 

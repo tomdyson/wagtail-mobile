@@ -1,6 +1,7 @@
 import { useState } from "react";
 import {
   Alert,
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -114,6 +115,11 @@ export default function LoginScreen() {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
       <View style={styles.inner}>
+        <Image
+          source={require("../assets/logo.png")}
+          style={styles.logo}
+          resizeMode="contain"
+        />
         <Text style={styles.heading}>Wagtail Mobile</Text>
         <Text style={styles.subheading}>
           Connect to your Wagtail site
@@ -205,6 +211,12 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     paddingHorizontal: 24,
+  },
+  logo: {
+    width: 104,
+    height: 104,
+    alignSelf: "center",
+    marginBottom: 18,
   },
   heading: {
     fontSize: 28,

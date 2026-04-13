@@ -7,16 +7,41 @@
     "icon": "./assets/icon.png",
     "scheme": "wagtail-mobile",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#00B0B1"
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.tomdyson.wagtailmobile"
+      "bundleIdentifier": "com.tomdyson.wagtailmobile",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
-    "plugins": ["expo-router", "expo-secure-store", "expo-camera"]
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#00B0B1"
+      }
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-dev-client",
+      "expo-secure-store",
+      "expo-camera",
+      "expo-web-browser",
+      "@react-native-community/datetimepicker",
+      "expo-font"
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "0c75238d-e0b2-4283-8384-d4597bd2652c"
+      }
+    }
   }
 }
